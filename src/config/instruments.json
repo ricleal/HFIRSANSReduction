@@ -1,0 +1,48 @@
+[
+	{
+		"name": "BioSANS",
+		"parser": "parser.parser.HFIR",
+		"builder": "parser.builder.HFIR",
+		"metadata": 
+		{
+			"name": "xpath://Header/Instrument",
+			"title": "xpath://Header/Scan_Title"
+		},
+
+		"detectors": 
+		[
+			{
+				"name": "main",
+				"data": "xpath://Data/Detector",
+				"lateral_offset": "xpath://Motor_Positions/detector_trans",
+				"sdd": "xpath://Motor_Positions/sdd"
+			},
+
+			{
+				"name": "wing",
+				"data": "xpath://Data/DetectorWing",
+				"rotation": "xpath://Motor_Positions/det_west_wing_rot"
+			}
+		]
+	},
+
+	{
+		"name": "GPSANS",
+		"facility": "HFIR",
+		"metadata": 
+		{
+			"name": "xpath://Header/Instrument",
+			"title": "xpath://Header/Scan_Title"
+		},
+
+		"detectors": 
+		[
+			{
+				"name": "main",
+				"data": "xpath://Data/Detector",
+				"lateral_offset": "xpath://Motor_Positions/detector_trans",
+				"sdd": "xpath://Motor_Positions/sdd"
+			}
+		]
+	}
+]
