@@ -15,13 +15,13 @@ import numpy as np
 import pandas as pd
 import os
 
-from config.settings import logger, LOCAL_DIR
+from config.settings import logger
 
 columns= ('name', 'parent', 'i', 'j', 'x', 'y', 'z', 'pixel_size_x', 'pixel_size_y')
 
 def generate_bio_sans():
     
-    instrument_name = "BioSANS"
+    instrument_name = "biosans"
     
     det1_name = "main"
     det1_n_pixels_x = 192
@@ -42,7 +42,7 @@ def generate_bio_sans():
     det2_step_angle_degrees = np.degrees(det2_step_angle_radians)
     
     
-    idf_filepath = os.path.join(LOCAL_DIR, 'biosans.hdf')
+    idf_filepath = os.path.join("../sans/hfir", instrument_name, instrument_name + '.hdf')
     
     #
     # det 1
@@ -109,13 +109,13 @@ def generate_bio_sans():
     
     df.info()
     
-    df.to_hdf(idf_filepath, 'BioSANS')
+    df.to_hdf(idf_filepath, instrument_name)
     logger.info("IDF saved to: %s."%idf_filepath)
 
 
 def generate_gp_sans():
     
-    instrument_name = "GPSANS"
+    instrument_name = "gpsans"
     
     det1_name = "main"
     det1_n_pixels_x = 192
@@ -125,7 +125,7 @@ def generate_gp_sans():
     det1_distance = 10
     
     
-    idf_filepath = os.path.join(LOCAL_DIR, 'gpsans.hdf')
+    idf_filepath = os.path.join("../sans/hfir", instrument_name, instrument_name + '.hdf')
     
     #
     # det 1
@@ -161,7 +161,7 @@ def generate_gp_sans():
     
     df.info()
     
-    df.to_hdf(idf_filepath, 'GPSANS')
+    df.to_hdf(idf_filepath, instrument_name)
     logger.info("IDF saved to: %s."%idf_filepath)
     
 if __name__ == "__main__":
