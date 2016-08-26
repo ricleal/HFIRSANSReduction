@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
-
+import sys
 from collections import OrderedDict
 
 from config.settings import logger
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.ndimage as ndimage
 
 class Data(object):
     '''
@@ -20,7 +21,7 @@ class Data(object):
     def __init__(self, filename):
         if not os.path.exists(filename):
             logger.error("File %s does not exist!"%(filename))
-            return
+            sys.exit()
         self._filename = filename    
     
     def __add__(self, other):
@@ -54,11 +55,20 @@ class Data(object):
     def solid_angle(self):
         pass
     
-    def beam_center(self):
-        # return [x,y,z]
-        pass
-    
+    def beam_center(self,detector_name = "main"):
+        data = self.data[detector_name]
+        y,x = ndimage.measurements.center_of_mass(data.values)
+        logger.debug("Center of Mass = (%f,%f)"%(x,y))
+        #coords = data.sel(x=x, y=y, method='nearest')
+        return x,y
+        
+        
     def plot(self):
+        for d in self.data.values():
+            d.plot()
+        plt.show()   
+    
+    def plot_with_coordinates(self):
         for idx,d in enumerate(self.data.values()):
             #d.plot.contourf(origin = 'lower')
             #d.plot.plot.pcolormesh()

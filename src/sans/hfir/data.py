@@ -24,11 +24,14 @@ This HFIR generic! Just one detector!
 '''
 
 class HFIR(Data):
-    def __init__(self, filename, instrument_name, move_instrument=False):
+    def __init__(self, filename, instrument_name, beam_center=None):
+        '''
+        @param beam_center: [x,y] in pixels
+        '''
         super(HFIR, self).__init__(filename)
         self._parse()
-        if move_instrument:
-            self._move_instrument(instrument_name)
+        if beam_center:
+            self._move_instrument(instrument_name, beam_center)
     
     def _parse(self):
         self._parser = HFIRParser(self._filename)
@@ -38,13 +41,13 @@ class HFIR(Data):
             data_from_detector = self._parser.getData(v)
             self.data.update({k:data_from_detector})
     
-    def _move_instrument(self, instrument_name):
+    def _move_instrument(self, instrument_name,beam_center):
         this_dir = os.path.abspath(os.path.dirname(__file__))
         idf_filename = os.path.join(this_dir, instrument_name.lower(), instrument_name.lower() + ".hdf")
         self.df = pd.read_hdf(idf_filename, instrument_name)
         # self.df.info()
         self._set_detector_distance()
-        self._set_detector_translation()
+        self._set_detector_center(beam_center)
         self._set_data_axis()
         
     def _set_detector_distance(self, detector_name=detector_name):
@@ -53,12 +56,11 @@ class HFIR(Data):
         condition = self.df.name == detector_name.encode('utf-8')
         self.df.loc[(condition), 'z'] = sdd
         
-    def _set_detector_translation(self, detector_name=detector_name):
-        detector_trans = self._parser.getMetadata("Motor_Positions/detector_trans")
-        detector_trans *= 1e-3  # Convert to meters
-        logger.debug("Detector %s translation = %f" %(detector_name, detector_trans))
-        condition = self.df.name == detector_name.encode('utf-8')
-        self.df.loc[(condition), 'x'] = self.df[condition].x + detector_trans - 0.200  ### May be remove this offset
+    def _set_detector_center(self, beam_center, detector_name=detector_name):
+        condition = self.df.name == detector_name.encode('utf-8')        
+        self.df.loc[(condition), 'x'] = self.df[condition].i * self.df[condition].pixel_size_x  -  self.df[condition].pixel_size_x * beam_center[0]
+        self.df.loc[(condition), 'y'] = self.df[condition].j * self.df[condition].pixel_size_y  -  self.df[condition].pixel_size_y * beam_center[1]
+        logger.info("Center of the detector: %s" % self.df[condition & (self.df.x == 0) & (self.df.y == 0)][["i","j","z"]].values )
         
     def _set_data_axis(self, detector_name=detector_name):
         condition = self.df.name == detector_name.encode('utf-8')

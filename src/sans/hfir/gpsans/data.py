@@ -8,9 +8,9 @@ from sans.hfir.data import HFIR
 from config.settings import logger
 
 class Data(HFIR):
-    def __init__(self, filename, move_instrument=False):
-        instrument_name = "GPSANS"
-        super(Data, self).__init__(filename,instrument_name,move_instrument)
+    def __init__(self, filename, beam_center=None):
+        instrument_name = "gpsans"
+        super(Data, self).__init__(filename,instrument_name,beam_center)
 
     
         

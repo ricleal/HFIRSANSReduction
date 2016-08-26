@@ -51,9 +51,9 @@ def generate_bio_sans():
     data_i, data_j = data_i.ravel(), data_j.ravel()
     
     pixel_x_middle = det1_pixel_width/2
-    row_x = [pixel_x_middle*(i+1) - det1_n_pixels_x*pixel_x_middle/2 for i in range(det1_n_pixels_x) ]
+    row_x = [pixel_x_middle*i for i in range(det1_n_pixels_x) ]
     pixel_y_middle = det1_pixel_height/2
-    row_y = [pixel_y_middle*(i+1) - det1_n_pixels_y*pixel_y_middle/2 for i in range(det1_n_pixels_y) ]
+    row_y = [pixel_y_middle*i for i in range(det1_n_pixels_y) ]
     data_x, data_y = np.meshgrid(row_x,row_y)
     data_x, data_y = data_x.ravel(), data_y.ravel()
     
@@ -79,7 +79,7 @@ def generate_bio_sans():
     row_x = det2_radius*np.sin(radial_angles)
     
     pixel_y_middle = det2_pixel_height/2
-    row_y = [pixel_y_middle*(i+1) - det2_n_pixels_y*pixel_y_middle/2 for i in range(det2_n_pixels_y) ]    
+    row_y = [pixel_y_middle*i for i in range(det2_n_pixels_y) ]    
     
     data_x,data_y = np.meshgrid(row_x,row_y)
     data_x,data_y = data_x.ravel(),data_y.ravel(),
@@ -108,6 +108,7 @@ def generate_bio_sans():
     df[['i', 'j', 'x', 'y', 'z', 'pixel_size_x', 'pixel_size_y']] = df[['i', 'j', 'x', 'y', 'z', 'pixel_size_x', 'pixel_size_y']].apply(pd.to_numeric,errors='ignore')
     
     df.info()
+    print(df)
     
     df.to_hdf(idf_filepath, instrument_name)
     logger.info("IDF saved to: %s."%idf_filepath)
@@ -134,9 +135,9 @@ def generate_gp_sans():
     data_i, data_j = data_i.ravel(), data_j.ravel()
     
     pixel_x_middle = det1_pixel_width/2
-    row_x = [pixel_x_middle*(i+1) - det1_n_pixels_x*pixel_x_middle/2 for i in range(det1_n_pixels_x) ]
+    row_x = [pixel_x_middle*i for i in range(det1_n_pixels_x) ]
     pixel_y_middle = det1_pixel_height/2
-    row_y = [pixel_y_middle*(i+1) - det1_n_pixels_y*pixel_y_middle/2 for i in range(det1_n_pixels_y) ]
+    row_y = [pixel_y_middle*i for i in range(det1_n_pixels_y) ]
     data_x, data_y = np.meshgrid(row_x,row_y)
     data_x, data_y = data_x.ravel(), data_y.ravel()
     
@@ -160,6 +161,7 @@ def generate_gp_sans():
     df[['i', 'j', 'x', 'y', 'z', 'pixel_size_x', 'pixel_size_y']] = df[['i', 'j', 'x', 'y', 'z', 'pixel_size_x', 'pixel_size_y']].apply(pd.to_numeric,errors='ignore')
     
     df.info()
+    print(df)
     
     df.to_hdf(idf_filepath, instrument_name)
     logger.info("IDF saved to: %s."%idf_filepath)
