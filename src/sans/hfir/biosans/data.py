@@ -8,8 +8,7 @@ from sans.hfir.data import HFIR
 from config.settings import logger
 
 class Data(HFIR):
-    def __init__(self, filename, beam_center=None):
-        instrument_name = "biosans"
-        super(Data, self).__init__(filename,instrument_name,beam_center)
-
+    def __init__(self, filename):
+        self.detectors.update({"wing" : "Data/DetectorWing" })
+        super(Data, self).__init__(filename)
 

@@ -2,70 +2,107 @@
 # -*- coding: utf-8 -*-
 import os, sys
 import pandas as pd
-import xarray as xr
+import numpy as np
+
+from collections import OrderedDict
+
 
 from config.settings import logger
 from sans.data import Data
 from sans.hfir.parser import HFIR as HFIRParser 
 
+
 #
-# common metadata and data to all SANS HFIR instruments
+# common metadata and detectors to all SANS HFIR instruments
 #
 
-metadata = {"title" : "Header/Scan_Title",
-           "wavelength": "Header/wavelength",
-           "wavelength_spread" : "Header/wavelength_spread"}
-
-data = {"main" : "Data/Detector" }
-detector_name = "main"
 
 '''
 This HFIR generic! Just one detector!
 '''
 
 class HFIR(Data):
-    def __init__(self, filename, instrument_name, beam_center=None):
+    
+    metadata = OrderedDict({"title" : "Header/Scan_Title",
+           "wavelength": "Header/wavelength",
+           "wavelength_spread" : "Header/wavelength_spread"})
+
+    # first detector is used for beam center
+    detectors = OrderedDict({"main" : "Data/Detector" })
+    
+
+    def __init__(self, filename):
         '''
         @param beam_center: [x,y] in pixels
         '''
         super(HFIR, self).__init__(filename)
         self._parse()
-        if beam_center:
-            self._move_instrument(instrument_name, beam_center)
+        
     
     def _parse(self):
+        '''
+        Main method that parses the XML file
+        '''
         self._parser = HFIRParser(self._filename)
-        for k, v in metadata.items():
+        for k, v in self.metadata.items():
             self.meta[k] = self._parser.getMetadata(v)
-        for k, v in data.items():
+        for k, v in self.detectors.items():
             data_from_detector = self._parser.getData(v)
-            self.data.update({k:data_from_detector})
+            self._add_detector_info_to_dataframe(k,data_from_detector) 
     
-    def _move_instrument(self, instrument_name,beam_center):
-        this_dir = os.path.abspath(os.path.dirname(__file__))
-        idf_filename = os.path.join(this_dir, instrument_name.lower(), instrument_name.lower() + ".hdf")
-        self.df = pd.read_hdf(idf_filename, instrument_name)
-        # self.df.info()
-        self._set_detector_distance()
-        self._set_detector_center(beam_center)
-        self._set_data_axis()
+    def _add_detector_info_to_dataframe(self, detector_name, detector_data):
+        '''
+        Creates or updates the Dataframe with the detector information
+        '''
+        n_rows, n_cols = detector_data.shape  # pos 0 rows, pos 1 columns
+        total_size = n_rows * n_cols
+        error = np.sqrt(detector_data)
+        rows_v, cols_v = np.meshgrid(range(n_rows), range(n_cols), indexing='ij')
         
-    def _set_detector_distance(self, detector_name=detector_name):
+        d = {'name': np.full(total_size, detector_name , dtype=np.dtype('S32')),
+             'i': rows_v.ravel(),  # i = rows
+             'j': cols_v.ravel(),  # j = coluns
+             'values': detector_data.ravel(),
+             'errors': error.ravel(),
+             }
+        self.add_dictionary_as_dataframe(d)
+        
+    def place_detectors_in_space(self):
+        '''
+        @param detector_list: Detector names.
+        
+        '''
+        
+        # common for all hfir just the main detector is used!
+        detector_name = list(self.detectors.keys())[0]
+        
+        # First detector in list is used to find the beamcenter.
+        beam_center_x, beam_center_y,  = self._find_beam_center(detector_name)        
+        self.meta["beam_center"] = [beam_center_x, beam_center_y]
+        
+        
+        pixel_size_x = self._parser.getMetadata("Header/x_mm_per_pixel") * 1e-3
+        pixel_size_y = self._parser.getMetadata("Header/y_mm_per_pixel") * 1e-3
+        n_pixels_x = self._parser.getMetadata("Header/Number_of_X_Pixels")
+        n_pixels_y = self._parser.getMetadata("Header/Number_of_Y_Pixels")
         sdd = self._parser.getMetadata("Motor_Positions/sdd")
-        logger.debug("Detector %s SDD = %f" %(detector_name, sdd))
-        condition = self.df.name == detector_name.encode('utf-8')
-        self.df.loc[(condition), 'z'] = sdd
+          
+        x_values = [  pixel_size_x*i  - beam_center_x*pixel_size_x for i in range(n_pixels_x) ]
+        y_values = [  pixel_size_y*i  - beam_center_y*pixel_size_y for i in range(n_pixels_y) ]
         
-    def _set_detector_center(self, beam_center, detector_name=detector_name):
-        condition = self.df.name == detector_name.encode('utf-8')        
-        self.df.loc[(condition), 'x'] = self.df[condition].i * self.df[condition].pixel_size_x  -  self.df[condition].pixel_size_x * beam_center[0]
-        self.df.loc[(condition), 'y'] = self.df[condition].j * self.df[condition].pixel_size_y  -  self.df[condition].pixel_size_y * beam_center[1]
-        logger.info("Center of the detector: %s" % self.df[condition & (self.df.x == 0) & (self.df.y == 0)][["i","j","z"]].values )
+        data_x, data_y = np.meshgrid(x_values,y_values, indexing='ij')
         
-    def _set_data_axis(self, detector_name=detector_name):
-        condition = self.df.name == detector_name.encode('utf-8')
-        x = self.df[condition].x.unique()
-        y = self.df[condition].y.unique()
-        self.data[detector_name] = xr.DataArray(self.data[detector_name].values,
-                                          [('y', y),
-                                           ('x', x) ])
+        d = {'x' : data_x.ravel(),
+             'y' : data_y.ravel(),
+             'z' : np.full(data_x.size(), sdd)
+            }
+        
+        df = pd.DataFrame(d)
+        self.df = self.df["name" == detector_name.encode('utf-8')].
+        
+        
+        
+        
+        
+    
+

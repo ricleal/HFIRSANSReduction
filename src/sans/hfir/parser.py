@@ -5,7 +5,6 @@ Created on Aug 26, 2016
 '''
 
 import numpy as np
-import xarray as xr
 
 from config.settings import logger
 from ..parser import XML
@@ -40,7 +39,5 @@ class HFIR(XML):
         data_np = np.array(data)
         data_np = np.rot90(data_np)
         data_np = np.flipud(data_np)
-
-        data_xr = xr.DataArray(data_np)
-        return data_xr
+        return data_np
         
