@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import scipy.ndimage as ndimage
 from scipy import stats
+from uncertainties import unumpy
 
 from config.settings import logger
 
@@ -20,6 +21,7 @@ class Data(object):
     df = None # Instrument data frame
     meta = {}
 
+
     def __init__(self, filename):
         if not os.path.exists(filename):
             logger.error("File %s does not exist!"%(filename))
@@ -27,17 +29,37 @@ class Data(object):
         logger.info("Using file %s."%(filename))
         self._filename = filename
 
+    @staticmethod
+    def _from_df_to_uncertainties(df):
+        v = df['values'].values
+        e = df['errors'].values
+        res = unumpy.uarray(v,e)
+        return res
+
+    @staticmethod
+    def _from_uncertainties_to_df(df, uncertainties_array):
+        df['values'] = unumpy.nominal_values(uncertainties_array)
+        df['errors'] = unumpy.std_devs(uncertainties_array)
+        return df
+
+
     def __add__(self, other):
-        self.df.values += other.values
-        self.df.errors = np.sqrt(self.df.errors**2 + other.errors**2)
+        pass
 
     def __sub__(self, other):
-        self.df.values -= other.values
-        self.df.errors = np.sqrt(self.df.errors**2 + other.errors**2)
+        pass
 
     def __mul__(self, other):
-        self.df.values *= other.values
-        # TODO ERROR Propagation
+        un = Data._from_df_to_uncertainties(self.df)
+        if isinstance(other, self.__class__):
+            un_other = Data._from_df_to_uncertainties(other.df)
+            res =  un * un_other
+            self.df = Data._from_uncertainties_to_df(self.df, res)
+        else:
+            res =  un * other
+            self.df = Data._from_uncertainties_to_df(self.df, res)
+        return self
+
 
     def __floordiv__(self, other):
         # v1 // v2
@@ -183,8 +205,16 @@ class Data(object):
 
 
     def solid_angle_correction(self):
+        '''
+        With error propagation!
+        '''
+        #self.df['values'] = self.df['values'].values * np.cos(theta)**3
         theta = self.df.theta.values
-        self.df['values'] = self.df['values'].values * np.cos(theta)**3
+        self *= np.cos(theta)**3
+
+
+
+
 
     def plot_iq(self,n_bins=50):
 
