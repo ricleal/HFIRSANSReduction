@@ -94,7 +94,9 @@ class HFIR(Data):
         y_values = [pixel_size_y * i - beam_center_y *
                     pixel_size_y for i in range(n_pixels_y)]
 
-        data_x, data_y = np.meshgrid(x_values, y_values, indexing='ij')
+        y_values = y_values[::-1]
+
+        data_x, data_y = np.meshgrid(x_values, y_values)
 
         d = {'x': data_x.ravel(),
              'y': data_y.ravel(),

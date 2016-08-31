@@ -63,7 +63,7 @@ class Data(object):
             self.df = self.df.append(df, ignore_index=True)
 
 
-    def _get_detector_2d(self,detector_name, values_name = 'values'):
+    def _get_detector_2d(self,detector_name = 'main', values_name = 'values'):
         try:
             detector_name = detector_name.encode('utf-8')
         except AttributeError:
@@ -81,13 +81,47 @@ class Data(object):
         logger.info("Beam Center of Mass = (%f,%f) pixels."%(x,y))
         return x,y
 
+    #     initial_guess = (500, x, y, 4, 4, 0, 0)
+    #     popt, pcov = opt.curve_fit(self.twoD_Gaussian, (x, y),
+    #                                data.ravel(), p0=initial_guess)
+    #     fit = Operations.twoD_Gaussian((x, y), *popt)
+    #     x_diff = (popt[1] - int(round(popt[1])))*pixel_size_y
+    #     y_diff = (popt[2] - int(round(popt[2]))) * pixel_size_x
+    #     center_x = center_data.coords['y'].values[int(round(popt[1]))] + x_diff
+    #     center_y = center_data.coords['x'].values[int(round(popt[2]))] + y_diff
+    #     return center_x, center_y, popt[1], popt[2]
+    #
+    #
+    #
+    #
+    # def _twoD_Gaussian(xdata_tuple, amplitude, xo, yo,
+    #                   sigma_x, sigma_y, theta, offset):
+    #     """
+    #     2D Gaussian function
+    #     from http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian
+    #         -function-using-scipy-optimize-curve-fit-valueerror-and-m
+    #     """
+    #     (x, y) = xdata_tuple
+    #     a = ((np.cos(theta)**2)/(2*sigma_x**2) +
+    #          (np.sin(theta)**2)/(2*sigma_y**2))
+    #     b = (-(np.sin(2*theta))/(4*sigma_x**2) +
+    #           (np.sin(2*theta))/(4*sigma_y**2))
+    #     c = ((np.sin(theta)**2)/(2*sigma_x**2) +
+    #          (np.cos(theta)**2)/(2*sigma_y**2))
+    #     g = offset + amplitude*np.exp(- (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) +
+    #                                      c*((y-yo)**2)))
+    #     return g.ravel()
 
-    def plot(self):
+
+
+    def plot(self, log=True):
         detector_names = self.df["name"].unique()
         plt.figure()
         subplot_prefix = "1{}".format(len(detector_names))
         for idx,detector_name in enumerate(detector_names):
             values = self._get_detector_2d(detector_name)
+            if log:
+                values = np.log(values)
             plt.subplot("{}{}".format(subplot_prefix,idx+1))
             plt.title(detector_name.decode())
             beam_center = self.meta.get("beam_center")
@@ -144,13 +178,14 @@ class Data(object):
              'qy': qy
              }
         df = pd.DataFrame(d)
+
         self.df = pd.concat([self.df, df], axis=1)
 
 
     def solid_angle_correction(self):
         theta = self.df.theta.values
         self.df['values'] = self.df['values'].values * np.cos(theta)**3
-        
+
     def plot_iq(self,n_bins=50):
 
         plt.figure()

@@ -37,14 +37,14 @@ def biosans():
     data.set_beam_center(bc)
 #    data.plot()
     data.calculate_q_values()
-    data.solid_angle_correction()
+    #data.solid_angle_correction()
     #print(data.df)
-    data.plot_iq()
+    #data.plot_iq()
 
 
 def main():
-    gpsans()
-    #biosans()
+    #gpsans()
+    biosans()
 
 
 if __name__ == "__main__":

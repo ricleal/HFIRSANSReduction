@@ -55,7 +55,7 @@ class Data(HFIR):
         row_y = [pixel_y_middle*i for i in range(n_pixels_y) ]
         y_drop = self.gravity_drop()
         row_y = np.array(row_y) + y_drop
-        data_x,data_y = np.meshgrid(row_x, row_y, indexing='ij')
+        data_x,data_y = np.meshgrid(row_x, row_y)
         data_z = np.tile(row_z,len(row_y))
 
         d = {'x': data_x.ravel(),
@@ -67,7 +67,7 @@ class Data(HFIR):
         df = df.set_index(self.df[self.df.name == "wing".encode('utf-8')].index)
         # We are assigning rows because we have alread x,y,z for main detector
         self.df.loc[self.df.name == "wing".encode('utf-8'),['x','y','z']] = df
-        
+
 
 
 

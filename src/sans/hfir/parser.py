@@ -17,18 +17,18 @@ class HFIR(XML):
         '''
         elems = self._root.findall(xpath)
         if not elems:
-            logger.error("xpath %s is not valid!")
+            logger.error("xpath %s is not valid!"%xpath)
             return None
         elif len(elems) >1:
             logger.warning("xpath %s has more than one element (len = %d)! Returning first!"%(xpath,len(elems)))
         value_as_string = elems[0].text
-        try: 
+        try:
             return float(value_as_string)
         except ValueError:
             return value_as_string
-        
-        return 
-    
+
+        return
+
     def getData(self,xpath):
         '''
         Parses the XML xpath data into a 2D Xarray
@@ -40,4 +40,3 @@ class HFIR(XML):
         data_np = np.rot90(data_np)
         data_np = np.flipud(data_np)
         return data_np
-        
