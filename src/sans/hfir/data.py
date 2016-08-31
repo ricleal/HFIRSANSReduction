@@ -104,38 +104,3 @@ class HFIR(Data):
         df = pd.DataFrame(d)
         df = df.set_index(self.df[self.df.name == detector_name.encode('utf-8')].index)
         self.df = pd.concat([self.df, df], axis=1)
-
-    def set_beam_center(self,beam_center_data):
-        '''
-        Copy x,y,z axes from beam_center_data
-        '''
-        self.df = pd.concat([self.df, beam_center_data.df[["x","y","z"]]], axis=1)
-
-    def iq(self):
-        '''
-        Calculate I(Q)
-        Q = 4 pi sin(theta) / lambda
-        '''
-
-
-        data_x = self.df.x.values
-        data_y = self.df.y.values
-        data_z = self.df.z.values
-        angle = np.arctan2(data_y, data_x)
-        angle = np.rad2deg(angle)
-        # make it integer from 0 to 360
-        angle = np.round(angle).astype(int) + 180
-
-
-        q = np.linalg.norm(np.column_stack((data_x, data_y)), axis=1)
-
-
-        angle_and_intensity_sum = np.bincount(angle,
-            weights=data_z)
-        angle_and_intensity_counts = np.bincount(angle)
-
-        angle_and_intensity_average = angle_and_intensity_sum / angle_and_intensity_counts.astype(np.float64)
-        angle_and_intensity_average = np.nan_to_num(angle_and_intensity_average) # because division by 0
-
-
-        return angle_and_intensity_average

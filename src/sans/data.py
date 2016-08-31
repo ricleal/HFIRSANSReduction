@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.ndimage as ndimage
-
+from scipy import stats
 
 from config.settings import logger
 
@@ -71,9 +71,6 @@ class Data(object):
         pivot = self.df[self.df.name == detector_name].pivot(index='i', columns='j', values=values_name)
         return pivot.values
 
-    def solid_angle(self):
-        pass
-
     def _find_beam_center(self,detector_name = "main"):
         '''
         Find center of mass given a detector_name
@@ -111,3 +108,56 @@ class Data(object):
 #             ax.set_title(detector_name.decode())
 #         fig.colorbar(im, ax=axes.ravel().tolist())
 #         plt.show()
+
+    def set_beam_center(self,beam_center_data):
+        '''
+        Copy x,y,z axes from beam_center_data
+        '''
+        self.df = pd.concat([self.df, beam_center_data.df[["x","y","z"]]], axis=1)
+
+    def calculate_q_values(self):
+        '''
+        Calculate I(Q)
+        Q = 4 pi sin(theta) / lambda
+        Qx, Qy
+        Theta
+        '''
+
+
+        data_x = self.df.x.values
+        data_y = self.df.y.values
+        data_z = self.df.z.values
+
+        r = np.hypot(data_x, data_y)
+        theta = np.arctan2(r, data_z)/2
+
+        wavelength = self.meta["wavelength"]
+        q = (4*np.pi/wavelength)*np.sin(theta)
+        alpha = np.arctan2(data_x,data_y)
+
+        qx = q*np.cos(alpha)
+        qy = q*np.sin(alpha)
+
+        d = {'theta' : theta,
+            'q': q,
+             'qx': qx,
+             'qy': qy
+             }
+        df = pd.DataFrame(d)
+        self.df = pd.concat([self.df, df], axis=1)
+
+
+    def solid_angle_correction(self):
+        theta = self.df.theta.values
+        self.df['values'] = self.df['values'].values * np.cos(theta)**3
+        
+    def plot_iq(self,n_bins=50):
+
+        plt.figure()
+        bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['values'].values, statistic='sum', bins=n_bins)
+        bin_width = (bin_edges[1] - bin_edges[0])
+        bin_centers = bin_edges[1:] - bin_width/2
+        # normalize to 1
+        bin_means = (bin_means - bin_means.min()) / (bin_means.max() - bin_means.min())
+        plt.loglog(bin_centers,bin_means,'r--', label="binning")
+        plt.show()
