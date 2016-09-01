@@ -49,7 +49,7 @@ class Data(HFIR):
         step_angle_radians = np.arcsin(step/2.0/radius)
         step_angle_degrees = np.degrees(step_angle_radians)
 
-        radial_angles = [ - rotation + -step_angle_radians * i for i in range(n_pixels_x) ]
+        radial_angles = [ - np.deg2rad(rotation) + -step_angle_radians * i for i in range(n_pixels_x) ]
         row_z = radius*np.cos(radial_angles)
         row_x = radius*np.sin(radial_angles)
 
@@ -58,6 +58,7 @@ class Data(HFIR):
         y_drop = self.gravity_drop()
         row_y = np.array(row_y) + y_drop
         row_y = row_y[::-1]
+        #row_x = row_x[::-1]
 
         data_x,data_y = np.meshgrid(row_x, row_y)
         data_z = np.tile(row_z,len(row_y))

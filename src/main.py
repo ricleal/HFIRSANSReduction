@@ -7,7 +7,7 @@ Created on Aug 25, 2016
 '''
 
 from pprint import pprint
-
+import copy
 
 def gpsans():
     from sans.hfir.gpsans.data import Data
@@ -38,17 +38,26 @@ def biosans():
 #     data = Data("/HFIR/CG3/IPTS-0000/exp327/Datafiles/BioSANS_exp327_scan0045_0001.xml")
     data = Data("/Users/rhf/Dropbox (ORNL)/DocumentsWorkstation/SANS/BioSans/20160621-SensitivityCorrupted/BioSANS_exp318_scan0034_0001.xml")
     data.set_beam_center(bc)
-#    data.plot()
+    #data.plot()
     data.calculate_q_values()
+    #data.plot()
     #data.solid_angle_correction()
     #print(data.df)
     #data.plot_iq()
 
+    #
+    # Clone the wing detector example
+    #
+    data_wing = copy.deepcopy(data)
+    data_wing.df = data_wing.df[data_wing.df.name == "wing".encode("utf-8") ]
+    #data_wing.plot()
+    data_wing.plot_iq()
+
 
 
 def main():
-    gpsans()
-    #biosans()
+    #gpsans()
+    biosans()
 
 
 if __name__ == "__main__":

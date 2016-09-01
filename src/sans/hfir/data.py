@@ -28,6 +28,7 @@ class HFIR(Data):
     metadata = OrderedDict({"title": "Header/Scan_Title",
                             "wavelength": "Header/wavelength",
                             "wavelength_spread": "Header/wavelength_spread",
+                            "sdd" : "Motor_Positions/sdd",
                             "monitor_counts" : "Counters/monitor",
                             "counting_time" : "Counters/time",
                             })
@@ -89,8 +90,7 @@ class HFIR(Data):
         pixel_size_y = self._parser.getMetadata("Header/y_mm_per_pixel") * 1e-3
         n_pixels_x = int(self._parser.getMetadata("Header/Number_of_X_Pixels"))
         n_pixels_y = int(self._parser.getMetadata("Header/Number_of_Y_Pixels"))
-        sdd = self._parser.getMetadata("Motor_Positions/sdd")
-        self.meta["sdd"] = sdd
+        sdd = self.meta["sdd"]
 
         x_values = [pixel_size_x * i - beam_center_x *
                     pixel_size_x for i in range(n_pixels_x)]

@@ -175,25 +175,43 @@ class Data(object):
                 # Modify the image to include the grid
                 values[:,round(beam_center[0])] = values.max()
                 values[round(beam_center[1]),:] = values.max()
-            plt.imshow(values)
+            if beam_center:
+                x = self.df[self.df["name"] == detector_name].x.unique()
+                y = self.df[self.df["name"] == detector_name].y.unique()
+                extent=(x[0],x[-1],y[0],y[-1])
+                plt.imshow(values,extent=extent, aspect='auto')
+                plt.xlabel('X')
+                plt.ylabel('Y')
+            else:
+                plt.imshow(values)
             plt.colorbar()
         plt.show()
 
-#     def plot_one_color_bar(self):
-#         detector_names = self.df["name"].unique()
-#         fig, axes = plt.subplots(nrows=1, ncols=len(detector_names))
-#         for ax,detector_name in zip(axes.flat,detector_names):
-#             data = self.get_detector_2d(detector_name)
-#             im = ax.imshow(data)
-#             ax.set_title(detector_name.decode())
-#         fig.colorbar(im, ax=axes.ravel().tolist())
-#         plt.show()
+    def plot_iq(self,n_bins=50):
+
+        plt.figure()
+        bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['values'].values, statistic='sum', bins=n_bins)
+        bin_width = (bin_edges[1] - bin_edges[0])
+        bin_centers = bin_edges[1:] - bin_width/2
+        # normalize to 1
+        bin_means = (bin_means - bin_means.min()) / (bin_means.max() - bin_means.min())
+        plt.loglog(bin_centers,bin_means,'r--', label="binning")
+        plt.show()
+
+    #
+    # Corrections
+    #
 
     def set_beam_center(self,beam_center_data):
         '''
-        Copy x,y,z axes from beam_center_data
+        Copy x,y axes from beam_center_data
+        z will be SDD.
+        The beamcenter used can be collected at different distances
         '''
-        self.df = pd.concat([self.df, beam_center_data.df[["x","y","z"]]], axis=1)
+        self.df = pd.concat([self.df, beam_center_data.df[["x","y"]]], axis=1)
+        d = {'z': np.full(self.df.shape[0], self.meta["sdd"])}
+        df = pd.DataFrame(d)
+        self.df = pd.concat([self.df, df], axis=1)
 
     def calculate_q_values(self):
         '''
@@ -208,11 +226,10 @@ class Data(object):
 
         r = np.hypot(data_x, data_y)
         theta = np.arctan2(r, data_z)/2
-
         wavelength = self.meta["wavelength"]
         q = (4*np.pi/wavelength)*np.sin(theta)
-        alpha = np.arctan2(data_x,data_y)
 
+        alpha = np.arctan2(data_x,data_y)
         qx = q*np.cos(alpha)
         qy = q*np.sin(alpha)
 
@@ -222,15 +239,14 @@ class Data(object):
              'qy': qy
              }
         df = pd.DataFrame(d)
-
         self.df = pd.concat([self.df, df], axis=1)
 
 
     def solid_angle_correction(self):
         '''
-        General solid_angle
+        General solid_angle with error propagation
         TODO: By detector
-        With error propagation!
+
         '''
         #self.df['values'] = self.df['values'].values * np.cos(theta)**3
         theta = self.df.theta.values
@@ -248,15 +264,24 @@ class Data(object):
             self /= self.meta["counting_time"]
 
 
+    def transmission_correction(transmission_value):
+        '''
+        Apply the transmission_value to the data
+        @param transmission_value : value
+        '''
+        theta = self.df.theta.values
+        self /= transmission_value**((1+(1/np.cos(2*theta)))/2)
 
+    def calculate_transmission_value(direct_beam, radius=3.0):
+        '''
+        This should be used to calculare the transmission from the transmission date
 
-    def plot_iq(self,n_bins=50):
+        The sample transmission is calculated as the ratio Ts = Is/Ie, where Is and Ie are the accumulated
+        detector counts for the Sample and Empty beam intensities, respectively, whereas the empty cell
+        transmission is the ratio Tc=Ib/Ie where Ib is the intensity for the empty cell (Blank).
 
-        plt.figure()
-        bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['values'].values, statistic='sum', bins=n_bins)
-        bin_width = (bin_edges[1] - bin_edges[0])
-        bin_centers = bin_edges[1:] - bin_width/2
-        # normalize to 1
-        bin_means = (bin_means - bin_means.min()) / (bin_means.max() - bin_means.min())
-        plt.loglog(bin_centers,bin_means,'r--', label="binning")
-        plt.show()
+        @param direct_beam : direct beam data
+        @return transmission_value
+        '''
+        sample_df = self.df[self.df[np.hypot(self.df.x, self.df.y) < radius]]
+        # TODO
