@@ -36,36 +36,56 @@ class Data(object):
         res = unumpy.uarray(v,e)
         return res
 
-    @staticmethod
-    def _from_uncertainties_to_df(df, uncertainties_array):
-        df['values'] = unumpy.nominal_values(uncertainties_array)
-        df['errors'] = unumpy.std_devs(uncertainties_array)
-        return df
-
+    def _from_uncertainties_to_df(self,uncertainties_array):
+        self.df['values'] = unumpy.nominal_values(uncertainties_array)
+        self.df['errors'] = unumpy.std_devs(uncertainties_array)
 
     def __add__(self, other):
-        pass
+        un = Data._from_df_to_uncertainties(self.df)
+        if isinstance(other, self.__class__):
+            un_other = Data._from_df_to_uncertainties(other.df)
+            res =  un + un_other
+            self._from_uncertainties_to_df(res)
+        else:
+            res =  un + other
+            self._from_uncertainties_to_df(res)
+        return self
 
     def __sub__(self, other):
-        pass
+        un = Data._from_df_to_uncertainties(self.df)
+        if isinstance(other, self.__class__):
+            un_other = Data._from_df_to_uncertainties(other.df)
+            res =  un - un_other
+            self._from_uncertainties_to_df(res)
+        else:
+            res =  un - other
+            self._from_uncertainties_to_df(res)
+        return self
 
     def __mul__(self, other):
         un = Data._from_df_to_uncertainties(self.df)
         if isinstance(other, self.__class__):
             un_other = Data._from_df_to_uncertainties(other.df)
             res =  un * un_other
-            self.df = Data._from_uncertainties_to_df(self.df, res)
+            self._from_uncertainties_to_df(res)
         else:
             res =  un * other
-            self.df = Data._from_uncertainties_to_df(self.df, res)
+            self._from_uncertainties_to_df(res)
         return self
 
+    def __itruediv__(self, other):
+        un = Data._from_df_to_uncertainties(self.df)
+        if isinstance(other, self.__class__):
+            un_other = Data._from_df_to_uncertainties(other.df)
+            res =  un / un_other
+            self._from_uncertainties_to_df(res)
+        else:
+            res =  un / other
+            self._from_uncertainties_to_df(res)
+        return self
 
     def __floordiv__(self, other):
         # v1 // v2
-        pass
-
-    def __div__(self, other):
         pass
 
     def __mod__(self, other):
@@ -85,7 +105,7 @@ class Data(object):
             self.df = self.df.append(df, ignore_index=True)
 
 
-    def _get_detector_2d(self,detector_name = 'main', values_name = 'values'):
+    def get_detector_2d(self,detector_name = 'main', values_name = 'values'):
         try:
             detector_name = detector_name.encode('utf-8')
         except AttributeError:
@@ -98,7 +118,7 @@ class Data(object):
         Find center of mass given a detector_name
         @return: pixel coordinates
         '''
-        data = self._get_detector_2d(detector_name)
+        data = self.get_detector_2d(detector_name)
         y,x = ndimage.measurements.center_of_mass(data)
         logger.info("Beam Center of Mass = (%f,%f) pixels."%(x,y))
         return x,y
@@ -137,11 +157,15 @@ class Data(object):
 
 
     def plot(self, log=True):
+        '''
+        Main 2D plot
+        If there's already a found beamcenter will plot a cross
+        '''
         detector_names = self.df["name"].unique()
         plt.figure()
         subplot_prefix = "1{}".format(len(detector_names))
         for idx,detector_name in enumerate(detector_names):
-            values = self._get_detector_2d(detector_name)
+            values = self.get_detector_2d(detector_name)
             if log:
                 values = np.log(values)
             plt.subplot("{}{}".format(subplot_prefix,idx+1))
@@ -159,7 +183,7 @@ class Data(object):
 #         detector_names = self.df["name"].unique()
 #         fig, axes = plt.subplots(nrows=1, ncols=len(detector_names))
 #         for ax,detector_name in zip(axes.flat,detector_names):
-#             data = self._get_detector_2d(detector_name)
+#             data = self.get_detector_2d(detector_name)
 #             im = ax.imshow(data)
 #             ax.set_title(detector_name.decode())
 #         fig.colorbar(im, ax=axes.ravel().tolist())
@@ -178,8 +202,6 @@ class Data(object):
         Qx, Qy
         Theta
         '''
-
-
         data_x = self.df.x.values
         data_y = self.df.y.values
         data_z = self.df.z.values
@@ -206,12 +228,24 @@ class Data(object):
 
     def solid_angle_correction(self):
         '''
+        General solid_angle
+        TODO: By detector
         With error propagation!
         '''
         #self.df['values'] = self.df['values'].values * np.cos(theta)**3
         theta = self.df.theta.values
         self *= np.cos(theta)**3
 
+
+    def normalization(self, monitor=True, time=False):
+        '''
+        Either use monitor or time
+        '''
+        assert(monitor != time, "ERROR: monitor and time can not be both True or False.")
+        if monitor:
+            self /= self.meta["monitor_counts"]
+        if time:
+            self /= self.meta["counting_time"]
 
 
 

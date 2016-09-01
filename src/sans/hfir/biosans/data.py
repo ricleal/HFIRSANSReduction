@@ -32,8 +32,10 @@ class Data(HFIR):
     def place_detectors_in_space(self):
         '''
         Calls generic hfir and finds beamcenter
-        Than positions the wind detector
+        Than positions the wing detector
         '''
+
+        # This will center the main detector
         super(Data, self).place_detectors_in_space()
 
         pixel_size_x = self._parser.getMetadata("Header/x_mm_per_pixel") * 1e-3
@@ -52,9 +54,11 @@ class Data(HFIR):
         row_x = radius*np.sin(radial_angles)
 
         pixel_y_middle = pixel_size_y/2
-        row_y = [pixel_y_middle*i for i in range(n_pixels_y) ]
+        row_y = [pixel_size_y*i + pixel_y_middle - (self.meta["beam_center"][1]*pixel_size_y) for i in range(n_pixels_y) ]
         y_drop = self.gravity_drop()
         row_y = np.array(row_y) + y_drop
+        row_y = row_y[::-1]
+
         data_x,data_y = np.meshgrid(row_x, row_y)
         data_z = np.tile(row_z,len(row_y))
 
@@ -67,9 +71,6 @@ class Data(HFIR):
         df = df.set_index(self.df[self.df.name == "wing".encode('utf-8')].index)
         # We are assigning rows because we have alread x,y,z for main detector
         self.df.loc[self.df.name == "wing".encode('utf-8'),['x','y','z']] = df
-
-
-
 
     def gravity_drop(self):
         sdd = self.meta["sdd"]

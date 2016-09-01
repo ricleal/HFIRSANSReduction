@@ -27,7 +27,10 @@ class HFIR(Data):
 
     metadata = OrderedDict({"title": "Header/Scan_Title",
                             "wavelength": "Header/wavelength",
-                            "wavelength_spread": "Header/wavelength_spread"})
+                            "wavelength_spread": "Header/wavelength_spread",
+                            "monitor_counts" : "Counters/monitor",
+                            "counting_time" : "Counters/time",
+                            })
 
     # first detector is used for beam center
     detectors = OrderedDict({"main": "Data/Detector"})
