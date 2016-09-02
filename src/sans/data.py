@@ -213,7 +213,10 @@ class Data(object):
     
     def plot_iq_errors(self,n_bins=50):
         '''
-        
+        IQ with error propagation
+        Note: this could have been done simply with:
+        bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['values'].values, statistic='mean', bins=n_bins)
+        But it wouldn't have the errors in the mean        
         '''
         
         plt.figure()
