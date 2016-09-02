@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -11,6 +12,7 @@ from uncertainties import unumpy
 
 from config.settings import logger
 
+plt.rcParams['image.cmap'] = 'viridis'
 
 class Data(object):
     '''
@@ -169,7 +171,7 @@ class Data(object):
 
 
 
-    def plot(self, log=True):
+    def plot_old(self, log=True):
         '''
         Main 2D plot
         If there's already a found beamcenter will plot a cross
@@ -186,8 +188,11 @@ class Data(object):
             beam_center = self.meta.get("beam_center")
             if beam_center and detector_name.decode() == list(self.detectors.keys())[0]:
                 # Modify the image to include the grid
-                values[:,round(beam_center[0])] = values.max()
-                values[round(beam_center[1]),:] = values.max()
+                beam_center_x = int(round(beam_center[0]))
+                beam_center_y = int(round(beam_center[1]))
+                logger.debug("Setting plot cross at beam_center [%s,%s] pixels."%(beam_center_x,beam_center_y))
+                values[:,beam_center_x] = values.max()
+                values[beam_center_y,:] = values.max()
             if beam_center:
                 x = self.df[self.df["name"] == detector_name].x.unique()
                 y = self.df[self.df["name"] == detector_name].y.unique()
@@ -199,6 +204,42 @@ class Data(object):
                 plt.imshow(values)
             plt.colorbar()
         plt.show()
+
+    def plot(self, log=True):
+        '''
+        Main 2D plot
+        If there's already a found beamcenter will plot a cross
+        '''
+        detector_names = self.df["name"].unique()
+        plt.figure()
+        subplot_prefix = "1{}".format(len(detector_names))
+        for idx,detector_name in enumerate(detector_names):
+            values = self.get_detector_2d(detector_name)
+            
+#             if log:
+#                 values = np.log(values)
+            plt.subplot("{}{}".format(subplot_prefix,idx+1))
+            plt.title(detector_name.decode())
+            beam_center = self.meta.get("beam_center")
+            if beam_center and detector_name.decode() == list(self.detectors.keys())[0]:
+                # Modify the image to include the grid
+                beam_center_x = int(round(beam_center[0]))
+                beam_center_y = int(round(beam_center[1]))
+                logger.debug("Setting plot cross at beam_center [%s,%s] pixels."%(beam_center_x,beam_center_y))
+                values[:,beam_center_x] = values.max()
+                values[beam_center_y,:] = values.max()
+            if beam_center:
+                x = self.df[self.df["name"] == detector_name].x.values.reshape(values.shape)
+                y = self.df[self.df["name"] == detector_name].y.values.reshape(values.shape)
+                #plt.contourf(x,y,values,locator=matplotlib.ticker.LogLocator(),origin = 'upper')
+                plt.pcolormesh(x,y,values)
+                plt.xlabel('X')
+                plt.ylabel('Y')
+
+            else:
+                plt.imshow(values)
+            plt.colorbar()
+        plt.show()        
 
     def plot_iq(self,n_bins=50):
 

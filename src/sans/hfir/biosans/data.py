@@ -57,8 +57,7 @@ class Data(HFIR):
         row_y = [pixel_size_y*i + pixel_y_middle - (self.meta["beam_center"][1]*pixel_size_y) for i in range(n_pixels_y) ]
         y_drop = self.gravity_drop()
         row_y = np.array(row_y) + y_drop
-        row_y = row_y[::-1]
-        #row_x = row_x[::-1]
+        
 
         data_x,data_y = np.meshgrid(row_x, row_y)
         data_z = np.tile(row_z,len(row_y))

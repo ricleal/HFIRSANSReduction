@@ -11,39 +11,39 @@ import copy
 
 def gpsans():
     from sans.hfir.gpsans.data import Data
-    #d = Data("/HFIR/CG2/IPTS-17367/exp137/Datafiles/CG2_exp137_scan0001_0001.xml")
-    bc = Data("/Users/rhf/tmp/CG2_exp137_scan0067_0001.xml")
+    bc = Data("/HFIR/CG2/IPTS-17367/exp137/Datafiles/CG2_exp137_scan0067_0001.xml")
+    #bc = Data("/Users/rhf/tmp/CG2_exp137_scan0067_0001.xml")
     bc.place_detectors_in_space()
     bc.plot()
 
-    data = Data("/Users/rhf/tmp/CG2_exp137_scan0066_0001.xml")
-    data.set_beam_center(bc)
+    #data = Data("/Users/rhf/tmp/CG2_exp137_scan0066_0001.xml")
+    #data.set_beam_center(bc)
     #data.plot()
 
-    data.calculate_q_values()
+    #data.calculate_q_values()
     #print(data.df[["values","errors"]][100:110])
-    data.solid_angle_correction()
+    #data.solid_angle_correction()
     #print(data.df[["values","errors"]][100:110])
     #print(data.df)
     #data.plot_iq()
-    data.normalization()
+    #data.normalization()
 
 def biosans():
     from sans.hfir.biosans.data import Data
     bc = Data("/HFIR/CG3/IPTS-0000/exp327/Datafiles/BioSANS_exp327_scan0039_0001.xml")
     #bc = Data("/Users/rhf/Dropbox (ORNL)/DocumentsWorkstation/SANS/BioSans/20160621-SensitivityCorrupted/BioSANS_exp318_scan0185_0001.xml")
     bc.place_detectors_in_space()
-    #bc.plot()
+    bc.plot()
 
-    data = Data("/HFIR/CG3/IPTS-0000/exp327/Datafiles/BioSANS_exp327_scan0045_0001.xml")
+    #data = Data("/HFIR/CG3/IPTS-0000/exp327/Datafiles/BioSANS_exp327_scan0045_0001.xml")
     #data = Data("/Users/rhf/Dropbox (ORNL)/DocumentsWorkstation/SANS/BioSans/20160621-SensitivityCorrupted/BioSANS_exp318_scan0034_0001.xml")
-    data.set_beam_center(bc)
+    #data.set_beam_center(bc)
     #data.plot()
-    data.calculate_q_values()
+    #data.calculate_q_values()
     #data.plot()
     #data.solid_angle_correction()
     #print(data.df)
-    data.plot_iq_errors()
+    #data.plot_iq_errors()
     #data.plot_iq()
 
     #
@@ -57,8 +57,8 @@ def biosans():
 
 
 def main():
-    #gpsans()
-    biosans()
+    gpsans()
+    #biosans()
 
 
 if __name__ == "__main__":

@@ -92,13 +92,14 @@ class HFIR(Data):
         n_pixels_y = int(self._parser.getMetadata("Header/Number_of_Y_Pixels"))
         sdd = self.meta["sdd"]
 
-        x_values = [pixel_size_x * i - beam_center_x *
+        pixel_x_middle = pixel_size_x/2
+        pixel_y_middle = pixel_size_y/2
+        
+        x_values = [pixel_x_middle + pixel_size_x * i - beam_center_x *
                     pixel_size_x for i in range(n_pixels_x)]
-        y_values = [pixel_size_y * i - beam_center_y *
+        y_values = [pixel_y_middle + pixel_size_y * i - beam_center_y *
                     pixel_size_y for i in range(n_pixels_y)]
-
-        y_values = y_values[::-1]
-
+        
         data_x, data_y = np.meshgrid(x_values, y_values)
 
         d = {'x': data_x.ravel(),

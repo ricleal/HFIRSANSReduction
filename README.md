@@ -38,3 +38,20 @@ virtualenv -p /usr/bin/python3 venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
+
+## Left-Handed Coordinate Systems
+
+'''
+Y
+^
+|
+|   ^ Z
+|  /
+| /
+|/
+---------->X
+'''
+
+Z - Will be from the sample to the detector
+
+
