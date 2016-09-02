@@ -95,6 +95,19 @@ class Data(object):
     def __pow__(self, other):
         # self.data[k1] = v1 ** v2
         pass
+    
+    # Let's override the data frame
+    def __getitem__(self, key):
+        val = self.df.__getitem__(key)
+        return val
+
+    def __setitem__(self, key, val):
+        self.df.__setitem__(key, val)
+
+    def __repr__(self):
+        dictrepr = self.df.__repr__()
+        return '%s(%s)' % (type(self).__name__, dictrepr)
+
 
 
     def add_dictionary_as_dataframe(self,d):
