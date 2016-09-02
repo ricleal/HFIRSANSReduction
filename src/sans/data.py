@@ -203,12 +203,52 @@ class Data(object):
     def plot_iq(self,n_bins=50):
 
         plt.figure()
-        bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['values'].values, statistic='sum', bins=n_bins)
+        bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['values'].values, statistic='mean', bins=n_bins)
         bin_width = (bin_edges[1] - bin_edges[0])
         bin_centers = bin_edges[1:] - bin_width/2
         # normalize to 1
         bin_means = (bin_means - bin_means.min()) / (bin_means.max() - bin_means.min())
         plt.loglog(bin_centers,bin_means,'r--', label="binning")
+        plt.show()
+    
+    def plot_iq_errors(self,n_bins=50):
+        '''
+        
+        '''
+        
+        plt.figure()
+        x = self.df['q'].values
+        y = self.df['values'].values
+        e = self.df['errors'].values
+        
+        # Let's get the histogram detail
+        logger.debug("Binning Q.")
+        
+        occurrences_per_bin, bin_edges = np.histogram(x,bins=n_bins)
+        bin_width = (bin_edges[1] - bin_edges[0])
+        bin_centers = bin_edges[1:] - bin_width/2
+        
+        # Return the indices of the bins to which each value in input array belongs.
+        inds_x = np.digitize(x, bin_edges, right=True)
+        # Don't know why but it puts a single value in the bin 0! Move it to pisition 1
+        idx_to_remove = np.where(inds_x==0)[0]
+        inds_x[idx_to_remove]=1
+        
+        # Error propagation: sum of values implies sum of errors
+        values_sums_per_bin = np.bincount(inds_x, weights=y, minlength=len(bin_edges) - 1) #sums all values in every bin
+        values_sums_per_bin = values_sums_per_bin[1:] # remove bin 0 (no counts!)
+        
+        error_sums_per_bin = np.bincount(inds_x, weights=e, minlength=len(bin_edges) - 1) #sums all errors in every bin
+        error_sums_per_bin=error_sums_per_bin[1:] # remove bin 0 (no counts!)
+        # Calculate average per bin (sum of the values divided by the cocurrences) with error propagation
+        average_per_bin_un = unumpy.uarray(values_sums_per_bin,error_sums_per_bin) / occurrences_per_bin
+        # Separate Values and error from the 2 arrays!
+        values = unumpy.nominal_values(average_per_bin_un)
+        errors = unumpy.std_devs(average_per_bin_un)
+        
+        plt.errorbar(bin_centers, values, yerr=errors, fmt='-', ecolor='g', capthick=2)
+        plt.semilogx()
+        plt.semilogy()
         plt.show()
 
     #
@@ -277,7 +317,7 @@ class Data(object):
             self /= self.meta["counting_time"]
 
 
-    def transmission_correction(transmission_value):
+    def transmission_correction(self, transmission_value):
         '''
         Apply the transmission_value to the data
         @param transmission_value : value
@@ -285,7 +325,7 @@ class Data(object):
         theta = self.df.theta.values
         self /= transmission_value**((1+(1/np.cos(2*theta)))/2)
 
-    def calculate_transmission_value(direct_beam, radius=3.0):
+    def calculate_transmission_value(self, direct_beam, radius=3.0):
         '''
         This should be used to calculare the transmission from the transmission date
 

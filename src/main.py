@@ -43,15 +43,16 @@ def biosans():
     #data.plot()
     #data.solid_angle_correction()
     #print(data.df)
+    data.plot_iq_errors()
     #data.plot_iq()
 
     #
     # Clone the wing detector example
     #
-    data_wing = copy.deepcopy(data)
-    data_wing.df = data_wing[data_wing['name'] == "wing".encode("utf-8") ]
-    #data_wing.plot()
-    data_wing.plot_iq()
+#     data_wing = copy.deepcopy(data)
+#     data_wing.df = data_wing[data_wing['name'] == "wing".encode("utf-8") ]
+#     #data_wing.plot()
+#     data_wing.plot_iq()
 
 
 
