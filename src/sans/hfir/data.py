@@ -47,9 +47,11 @@ class HFIR(Data):
         '''
         Main method that parses the XML file
         '''
+        # Parses metadata
         self._parser = HFIRParser(self._filename)
         for k, v in self.metadata.items():
             self.meta[k] = self._parser.getMetadata(v)
+        # Parses the detector data
         for k, v in self.detectors.items():
             data_from_detector = self._parser.getData(v)
             self._add_detector_info_to_dataframe(k, data_from_detector)
@@ -67,7 +69,7 @@ class HFIR(Data):
         d = {'name': np.full(total_size, detector_name, dtype=np.dtype('S32')),
              'i': rows_v.ravel(),  # i = rows
              'j': cols_v.ravel(),  # j = coluns
-             'values': detector_data.ravel(),
+             'counts': detector_data.ravel(),
              'errors': error.ravel(),
              }
         self.add_dictionary_as_dataframe(d)
@@ -76,6 +78,7 @@ class HFIR(Data):
         '''
         Find beamcenter and adjust the axis
         Only does this for the main detector
+        Starts from top left corner of the detector, Left hand coordinates
         @param detector_list: Detector names.
         '''
 
@@ -94,12 +97,14 @@ class HFIR(Data):
 
         pixel_x_middle = pixel_size_x/2
         pixel_y_middle = pixel_size_y/2
-        
+
+        # From left to right, negative to positive
         x_values = [pixel_x_middle + pixel_size_x * i - beam_center_x *
                     pixel_size_x for i in range(n_pixels_x)]
-        y_values = [pixel_y_middle + pixel_size_y * i - beam_center_y *
-                    pixel_size_y for i in range(n_pixels_y)]
-        
+        # From top to bottom,  positive to negative
+        y_values = [pixel_y_middle + pixel_size_y * i - (n_pixels_y - beam_center_y) *
+                    pixel_size_y for i in reversed(range(n_pixels_y))]
+
         data_x, data_y = np.meshgrid(x_values, y_values)
 
         d = {'x': data_x.ravel(),

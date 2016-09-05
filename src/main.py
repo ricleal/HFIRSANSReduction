@@ -11,9 +11,10 @@ import copy
 
 def gpsans():
     from sans.hfir.gpsans.data import Data
-    bc = Data("/HFIR/CG2/IPTS-17367/exp137/Datafiles/CG2_exp137_scan0067_0001.xml")
-    #bc = Data("/Users/rhf/tmp/CG2_exp137_scan0067_0001.xml")
+    #bc = Data("/HFIR/CG2/IPTS-17367/exp137/Datafiles/CG2_exp137_scan0067_0001.xml")
+    bc = Data("/Users/rhf/tmp/CG2_exp137_scan0067_0001.xml")
     bc.place_detectors_in_space()
+    #print(bc.df)
     bc.plot()
 
     #data = Data("/Users/rhf/tmp/CG2_exp137_scan0066_0001.xml")
@@ -21,17 +22,19 @@ def gpsans():
     #data.plot()
 
     #data.calculate_q_values()
-    #print(data.df[["values","errors"]][100:110])
+    #print(data.df[["counts","errors"]][100:110])
     #data.solid_angle_correction()
-    #print(data.df[["values","errors"]][100:110])
+    #print(data.df[["counts","errors"]][100:110])
     #print(data.df)
     #data.plot_iq()
     #data.normalization()
 
+    #bc.df.to_csv('/Users/rhf/tmp/df.csv')
+
 def biosans():
     from sans.hfir.biosans.data import Data
-    bc = Data("/HFIR/CG3/IPTS-0000/exp327/Datafiles/BioSANS_exp327_scan0039_0001.xml")
-    #bc = Data("/Users/rhf/Dropbox (ORNL)/DocumentsWorkstation/SANS/BioSans/20160621-SensitivityCorrupted/BioSANS_exp318_scan0185_0001.xml")
+    #bc = Data("/HFIR/CG3/IPTS-0000/exp327/Datafiles/BioSANS_exp327_scan0039_0001.xml")
+    bc = Data("/Users/rhf/Dropbox (ORNL)/DocumentsWorkstation/SANS/BioSans/20160621-SensitivityCorrupted/BioSANS_exp318_scan0185_0001.xml")
     bc.place_detectors_in_space()
     bc.plot()
 
@@ -57,8 +60,8 @@ def biosans():
 
 
 def main():
-    gpsans()
-    #biosans()
+    #gpsans()
+    biosans()
 
 
 if __name__ == "__main__":

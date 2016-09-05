@@ -33,13 +33,13 @@ class Data(object):
 
     @staticmethod
     def _from_df_to_uncertainties(df):
-        v = df['values'].values
+        v = df['counts'].values
         e = df['errors'].values
         res = unumpy.uarray(v,e)
         return res
 
     def _from_uncertainties_to_df(self,uncertainties_array):
-        self.df['values'] = unumpy.nominal_values(uncertainties_array)
+        self.df['counts'] = unumpy.nominal_values(uncertainties_array)
         self.df['errors'] = unumpy.std_devs(uncertainties_array)
 
     def __add__(self, other):
@@ -97,7 +97,7 @@ class Data(object):
     def __pow__(self, other):
         # self.data[k1] = v1 ** v2
         pass
-    
+
     # Let's override the data frame
     def __getitem__(self, key):
         val = self.df.__getitem__(key)
@@ -110,8 +110,6 @@ class Data(object):
         dictrepr = self.df.__repr__()
         return '%s(%s)' % (type(self).__name__, dictrepr)
 
-
-
     def add_dictionary_as_dataframe(self,d):
         df = pd.DataFrame(d)
         if self.df is None:
@@ -119,8 +117,7 @@ class Data(object):
         else:
             self.df = self.df.append(df, ignore_index=True)
 
-
-    def get_detector_2d(self,detector_name = 'main', values_name = 'values'):
+    def get_detector_2d(self,detector_name = 'main', values_name = 'counts'):
         try:
             detector_name = detector_name.encode('utf-8')
         except AttributeError:
@@ -138,40 +135,7 @@ class Data(object):
         logger.info("Beam Center of Mass = (%f,%f) pixels."%(x,y))
         return x,y
 
-    #     initial_guess = (500, x, y, 4, 4, 0, 0)
-    #     popt, pcov = opt.curve_fit(self.twoD_Gaussian, (x, y),
-    #                                data.ravel(), p0=initial_guess)
-    #     fit = Operations.twoD_Gaussian((x, y), *popt)
-    #     x_diff = (popt[1] - int(round(popt[1])))*pixel_size_y
-    #     y_diff = (popt[2] - int(round(popt[2]))) * pixel_size_x
-    #     center_x = center_data.coords['y'].values[int(round(popt[1]))] + x_diff
-    #     center_y = center_data.coords['x'].values[int(round(popt[2]))] + y_diff
-    #     return center_x, center_y, popt[1], popt[2]
-    #
-    #
-    #
-    #
-    # def _twoD_Gaussian(xdata_tuple, amplitude, xo, yo,
-    #                   sigma_x, sigma_y, theta, offset):
-    #     """
-    #     2D Gaussian function
-    #     from http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian
-    #         -function-using-scipy-optimize-curve-fit-valueerror-and-m
-    #     """
-    #     (x, y) = xdata_tuple
-    #     a = ((np.cos(theta)**2)/(2*sigma_x**2) +
-    #          (np.sin(theta)**2)/(2*sigma_y**2))
-    #     b = (-(np.sin(2*theta))/(4*sigma_x**2) +
-    #           (np.sin(2*theta))/(4*sigma_y**2))
-    #     c = ((np.sin(theta)**2)/(2*sigma_x**2) +
-    #          (np.cos(theta)**2)/(2*sigma_y**2))
-    #     g = offset + amplitude*np.exp(- (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) +
-    #                                      c*((y-yo)**2)))
-    #     return g.ravel()
-
-
-
-    def plot_old(self, log=True):
+    def plot(self, log=True):
         '''
         Main 2D plot
         If there's already a found beamcenter will plot a cross
@@ -196,8 +160,8 @@ class Data(object):
             if beam_center:
                 x = self.df[self.df["name"] == detector_name].x.unique()
                 y = self.df[self.df["name"] == detector_name].y.unique()
-                extent=(x[0],x[-1],y[0],y[-1])
-                plt.imshow(values,extent=extent, aspect='auto')
+                extent=(x[0],x[-1],y.min(),y.max())
+                plt.imshow(values,extent=extent, origin='upper', aspect='auto')
                 plt.xlabel('X')
                 plt.ylabel('Y')
             else:
@@ -205,83 +169,48 @@ class Data(object):
             plt.colorbar()
         plt.show()
 
-    def plot(self, log=True):
-        '''
-        Main 2D plot
-        If there's already a found beamcenter will plot a cross
-        '''
-        detector_names = self.df["name"].unique()
-        plt.figure()
-        subplot_prefix = "1{}".format(len(detector_names))
-        for idx,detector_name in enumerate(detector_names):
-            values = self.get_detector_2d(detector_name)
-            
-#             if log:
-#                 values = np.log(values)
-            plt.subplot("{}{}".format(subplot_prefix,idx+1))
-            plt.title(detector_name.decode())
-            beam_center = self.meta.get("beam_center")
-            if beam_center and detector_name.decode() == list(self.detectors.keys())[0]:
-                # Modify the image to include the grid
-                beam_center_x = int(round(beam_center[0]))
-                beam_center_y = int(round(beam_center[1]))
-                logger.debug("Setting plot cross at beam_center [%s,%s] pixels."%(beam_center_x,beam_center_y))
-                values[:,beam_center_x] = values.max()
-                values[beam_center_y,:] = values.max()
-            if beam_center:
-                x = self.df[self.df["name"] == detector_name].x.values.reshape(values.shape)
-                y = self.df[self.df["name"] == detector_name].y.values.reshape(values.shape)
-                #plt.contourf(x,y,values,locator=matplotlib.ticker.LogLocator(),origin = 'upper')
-                plt.pcolormesh(x,y,values)
-                plt.xlabel('X')
-                plt.ylabel('Y')
-
-            else:
-                plt.imshow(values)
-            plt.colorbar()
-        plt.show()        
-
     def plot_iq(self,n_bins=50):
 
         plt.figure()
-        bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['values'].values, statistic='mean', bins=n_bins)
+        bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['counts'].values, statistic='mean', bins=n_bins)
         bin_width = (bin_edges[1] - bin_edges[0])
         bin_centers = bin_edges[1:] - bin_width/2
         # normalize to 1
         bin_means = (bin_means - bin_means.min()) / (bin_means.max() - bin_means.min())
         plt.loglog(bin_centers,bin_means,'r--', label="binning")
         plt.show()
-    
+
     def plot_iq_errors(self,n_bins=50):
         '''
         IQ with error propagation
         Note: this could have been done simply with:
-        bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['values'].values, statistic='mean', bins=n_bins)
-        But it wouldn't have the errors in the mean        
+        bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['counts'].values, statistic='mean', bins=n_bins)
+        But it wouldn't have the errors in the mean.
+        I am summing all the counts and error in every bin (sum of values => sum of errors) and then use the uncertainties package for division.
         '''
-        
+
         plt.figure()
         x = self.df['q'].values
-        y = self.df['values'].values
+        y = self.df['counts'].values
         e = self.df['errors'].values
-        
+
         # Let's get the histogram detail
         logger.debug("Binning Q.")
-        
+
         occurrences_per_bin, bin_edges = np.histogram(x,bins=n_bins)
         bin_width = (bin_edges[1] - bin_edges[0])
         bin_centers = bin_edges[1:] - bin_width/2
-        
+
         # Return the indices of the bins to which each value in input array belongs.
         inds_x = np.digitize(x, bin_edges, right=True)
         # Don't know why but it puts a single value in the bin 0! Move it to pisition 1
         idx_to_remove = np.where(inds_x==0)[0]
         inds_x[idx_to_remove]=1
-        
+
         # Error propagation: sum of values implies sum of errors
         values_sums_per_bin = np.bincount(inds_x, weights=y, minlength=len(bin_edges) - 1) #sums all values in every bin
         values_sums_per_bin = values_sums_per_bin[1:] # remove bin 0 (no counts!)
-        
+
         error_sums_per_bin = np.bincount(inds_x, weights=e, minlength=len(bin_edges) - 1) #sums all errors in every bin
         error_sums_per_bin=error_sums_per_bin[1:] # remove bin 0 (no counts!)
         # Calculate average per bin (sum of the values divided by the cocurrences) with error propagation
@@ -289,7 +218,7 @@ class Data(object):
         # Separate Values and error from the 2 arrays!
         values = unumpy.nominal_values(average_per_bin_un)
         errors = unumpy.std_devs(average_per_bin_un)
-        
+
         plt.errorbar(bin_centers, values, yerr=errors, fmt='-', ecolor='g', capthick=2)
         plt.semilogx()
         plt.semilogy()
@@ -345,7 +274,7 @@ class Data(object):
         TODO: By detector
 
         '''
-        #self.df['values'] = self.df['values'].values * np.cos(theta)**3
+        #self.df['counts'] = self.df['counts'].values * np.cos(theta)**3
         theta = self.df.theta.values
         self *= np.cos(theta)**3
 
