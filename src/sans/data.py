@@ -11,6 +11,7 @@ from scipy import stats
 from uncertainties import unumpy
 
 from config.settings import logger
+from .beam_center import find_beam_center
 
 plt.rcParams['image.cmap'] = 'viridis'
 
@@ -131,8 +132,7 @@ class Data(object):
         @return: pixel coordinates
         '''
         data = self.get_detector_2d(detector_name)
-        y,x = ndimage.measurements.center_of_mass(data)
-        logger.info("Beam Center of Mass = (%f,%f) pixels."%(x,y))
+        x,y = find_beam_center(data)
         return x,y
 
     def plot(self, log=True):

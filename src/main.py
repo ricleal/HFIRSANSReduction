@@ -60,8 +60,8 @@ def biosans():
 
 
 def main():
-    #gpsans()
-    biosans()
+    gpsans()
+    #biosans()
 
 
 if __name__ == "__main__":
