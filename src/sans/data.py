@@ -40,8 +40,10 @@ class Data(object):
         return res
 
     def _from_uncertainties_to_df(self,uncertainties_array):
-        self.df['counts'] = unumpy.nominal_values(uncertainties_array)
-        self.df['errors'] = unumpy.std_devs(uncertainties_array)
+        v = unumpy.nominal_values(uncertainties_array)
+        e = unumpy.nominal_values(uncertainties_array)
+        self.df.counts = v
+        self.df.errors = e
 
     def __add__(self, other):
         un = Data._from_df_to_uncertainties(self.df)
@@ -126,6 +128,7 @@ class Data(object):
         pivot = self.df[self.df.name == detector_name].pivot(index='i', columns='j', values=values_name)
         return pivot.values
 
+
     def _find_beam_center(self,detector_name = "main"):
         '''
         Find center of mass given a detector_name
@@ -170,14 +173,16 @@ class Data(object):
         plt.show()
 
     def plot_iq(self,n_bins=50):
-
+        '''
+        Just plots I(Q)
+        '''
         plt.figure()
         bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['counts'].values, statistic='mean', bins=n_bins)
         bin_width = (bin_edges[1] - bin_edges[0])
         bin_centers = bin_edges[1:] - bin_width/2
         # normalize to 1
         bin_means = (bin_means - bin_means.min()) / (bin_means.max() - bin_means.min())
-        plt.loglog(bin_centers,bin_means,'r--', label="binning")
+        plt.loglog(bin_centers,bin_means,'x', label="binning")
         plt.show()
 
     def plot_iq_errors(self,n_bins=50):
@@ -268,7 +273,7 @@ class Data(object):
         self.df = pd.concat([self.df, df], axis=1)
 
 
-    def solid_angle_correction(self):
+    def correct_solid_angle(self):
         '''
         General solid_angle with error propagation
         TODO: By detector
@@ -290,7 +295,7 @@ class Data(object):
             self /= self.meta["counting_time"]
 
 
-    def transmission_correction(self, transmission_value):
+    def correct_transmission(self, transmission_value):
         '''
         Apply the transmission_value to the data
         @param transmission_value : value
@@ -311,3 +316,68 @@ class Data(object):
         '''
         sample_df = self.df[self.df[np.hypot(self.df.x, self.df.y) < radius]]
         # TODO
+
+    def mask_even(self):
+        '''
+        Front tubes???
+        This needs to be revisited! Once masked the data is lost!!
+        #TODO
+        - Rename for front/back tubes
+         - See if we can use Numpy MaskedArrays
+        '''
+
+        #self.df.loc[self.df.j%2 == 0, 'counts'] = np.nan
+        mask = self.df.j%2 == 0
+        self.df.counts = self.df.counts.mask(mask)
+
+    def mask_odd(self):
+        '''
+        Back tubes?
+        '''
+        #self.df.loc[(self.df.j+1)%2 == 0, 'counts'] = np.nan
+
+        # # Mask NP version. Single array. Puts None in the mask :(
+        # mask = (self.df.j+1)%2 == 0
+        # masked_array = np.ma.masked_array(self.df.counts.values,mask=mask.values)
+        # self.df.counts = np.ma.filled(masked_array)
+        # print(self.df.counts)
+
+        mask = (self.df.j+1)%2 == 0
+        self.df.counts = self.df.counts.mask(mask)
+
+
+
+    def compute_sensitivity(self, min_sensitivity=0.5, max_sensitivity=1.5):
+        '''
+        Used if only for the flood data!!!
+
+        SensitivityCorrection(flood_data, min_sensitivity=0.5, max_sensitivity=1.5)
+        The relative detector efficiency is computed the following way
+
+        S(x,y) = \frac{I_{flood}(x,y)}{1/N_{pixels} \ \sum_{i,j} \ I_{flood}(i,j)}
+        where I_{flood}(x,y) is the pixel count of the flood data in pixel (x,y). If a minimum and/or maximum sensitivity is given, the pixels having an efficiency outside the given limits are masked and the efficiency is recomputed without using those pixels.
+        The sample data is then corrected by dividing the intensity in each pixels by the efficiency S
+        '''
+        # First step
+        un = Data._from_df_to_uncertainties(self.df)
+        mean = un.mean()
+        un = un / mean
+        self._from_uncertainties_to_df(un)
+        # Mask what is outside the boundaries
+        mask = (self.df.counts < min_sensitivity) | (self.df.counts > max_sensitivity)
+        self.df.counts = self.df.counts.mask(mask)
+        self.df.errors = self.df.errors.mask(mask)
+        # Recompute
+        un = Data._from_df_to_uncertainties(self.df)
+        mean = un.mean()
+        un = un / mean
+        self._from_uncertainties_to_df(un)
+
+    def correct_sensitivity(self,computed_sensitivity):
+        '''
+        Used for sample data!
+
+        I'_{sample}(x,y) = \frac{I_{sample}(x,y)}{S(x,y)}
+        The pixels found to have an efficiency outside the given limits are also masked in the sample data so that they don’t enter any subsequent calculations.
+        '''
+        self /= computed_sensitivity
