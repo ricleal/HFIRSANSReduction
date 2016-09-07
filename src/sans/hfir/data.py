@@ -11,7 +11,7 @@ from collections import OrderedDict
 from config.settings import logger
 from sans.data import Data
 from sans.hfir.parser import HFIR as HFIRParser
-
+from operations.errors import from_arrays_to_uncertainties
 
 #
 # common metadata and detectors to all SANS HFIR instruments
@@ -65,12 +65,13 @@ class HFIR(Data):
         error = np.sqrt(detector_data)
         rows_v, cols_v = np.meshgrid(
             range(n_rows), range(n_cols), indexing='ij')
+        
+        counts = from_arrays_to_uncertainties(detector_data.ravel(),error.ravel())
 
         d = {'name': np.full(total_size, detector_name, dtype=np.dtype('S32')),
              'i': rows_v.ravel(),  # i = rows
              'j': cols_v.ravel(),  # j = coluns
-             'counts': detector_data.ravel(),
-             'errors': error.ravel(),
+             'counts': counts,
              }
         self.add_dictionary_as_dataframe(d)
 

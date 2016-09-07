@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import scipy.ndimage as ndimage
 from scipy import stats
-from uncertainties import unumpy
+from operations.errors import from_uncertainties_to_arrays
 
 from config.settings import logger
 from .beam_center import find_beam_center
@@ -29,65 +29,38 @@ class Data(object):
         if not os.path.exists(filename):
             logger.error("File %s does not exist!"%(filename))
             sys.exit()
-        logger.info("Using file %s."%(filename))
         self._filename = filename
 
-    @staticmethod
-    def _from_df_to_uncertainties(df):
-        v = df['counts'].values
-        e = df['errors'].values
-        res = unumpy.uarray(v,e)
-        return res
-
-    def _from_uncertainties_to_df(self,uncertainties_array):
-        v = unumpy.nominal_values(uncertainties_array)
-        e = unumpy.nominal_values(uncertainties_array)
-        self.df.counts = v
-        self.df.errors = e
-
     def __add__(self, other):
-        un = Data._from_df_to_uncertainties(self.df)
         if isinstance(other, self.__class__):
-            un_other = Data._from_df_to_uncertainties(other.df)
-            res =  un + un_other
-            self._from_uncertainties_to_df(res)
+            self.df.counts = self.df.counts + other.df.counts
         else:
-            res =  un + other
-            self._from_uncertainties_to_df(res)
+            self.df.counts = self.df.counts.values + other
         return self
 
     def __sub__(self, other):
-        un = Data._from_df_to_uncertainties(self.df)
         if isinstance(other, self.__class__):
-            un_other = Data._from_df_to_uncertainties(other.df)
-            res =  un - un_other
-            self._from_uncertainties_to_df(res)
+            self.df.counts = self.df.counts - other.df.counts
         else:
-            res =  un - other
-            self._from_uncertainties_to_df(res)
+            self.df.counts = self.df.counts.values - other
         return self
 
     def __mul__(self, other):
-        un = Data._from_df_to_uncertainties(self.df)
         if isinstance(other, self.__class__):
-            un_other = Data._from_df_to_uncertainties(other.df)
-            res =  un * un_other
-            self._from_uncertainties_to_df(res)
+            self.df.counts = self.df.counts * other.df.counts
         else:
-            res =  un * other
-            self._from_uncertainties_to_df(res)
+            self.df.counts = self.df.counts.values * other
         return self
 
+
     def __itruediv__(self, other):
-        un = Data._from_df_to_uncertainties(self.df)
         if isinstance(other, self.__class__):
-            un_other = Data._from_df_to_uncertainties(other.df)
-            res =  un / un_other
-            self._from_uncertainties_to_df(res)
+            self.df.counts = self.df.counts / other.df.counts
         else:
-            res =  un / other
-            self._from_uncertainties_to_df(res)
+            un = self.df.counts.values / other
+            self.df.counts = un
         return self
+
 
     def __floordiv__(self, other):
         # v1 // v2
@@ -121,12 +94,16 @@ class Data(object):
             self.df = self.df.append(df, ignore_index=True)
 
     def get_detector_2d(self,detector_name = 'main', values_name = 'counts'):
+        '''
+        Return values of uncertanities
+        '''
         try:
             detector_name = detector_name.encode('utf-8')
         except AttributeError:
             pass
         pivot = self.df[self.df.name == detector_name].pivot(index='i', columns='j', values=values_name)
-        return pivot.values
+        values, _ = from_uncertainties_to_arrays(pivot.values)
+        return values
 
 
     def _find_beam_center(self,detector_name = "main"):
@@ -147,6 +124,7 @@ class Data(object):
         plt.figure()
         subplot_prefix = "1{}".format(len(detector_names))
         for idx,detector_name in enumerate(detector_names):
+            logger.debug("Plotting %s."%(detector_name))
             values = self.get_detector_2d(detector_name)
             if log:
                 values = np.log(values)
@@ -176,8 +154,10 @@ class Data(object):
         '''
         Just plots I(Q)
         '''
+        logger.info("Plotting IQ.")
         plt.figure()
-        bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['counts'].values, statistic='mean', bins=n_bins)
+        counts, _ = from_uncertainties_to_arrays(self.df['counts'].values)
+        bin_means, bin_edges, _ = stats.binned_statistic(self.df['q'].values, counts, statistic='mean', bins=n_bins)
         bin_width = (bin_edges[1] - bin_edges[0])
         bin_centers = bin_edges[1:] - bin_width/2
         # normalize to 1
@@ -192,13 +172,15 @@ class Data(object):
         bin_means, bin_edges, binnumber = stats.binned_statistic(self.df['q'].values, self.df['counts'].values, statistic='mean', bins=n_bins)
         But it wouldn't have the errors in the mean.
         I am summing all the counts and error in every bin (sum of values => sum of errors) and then use the uncertainties package for division.
-        '''
 
+        TODO: REFACTOR THIS!
+        '''
+        from uncertainties import unumpy
+
+        logger.info("Plotting IQ with errors.")
         plt.figure()
         x = self.df['q'].values
-        y = self.df['counts'].values
-        e = self.df['errors'].values
-
+        y, e = from_uncertainties_to_arrays(self.df['counts'].values)
         # Let's get the histogram detail
         logger.debug("Binning Q.")
 
@@ -239,6 +221,8 @@ class Data(object):
         z will be SDD.
         The beamcenter used can be collected at different distances
         '''
+        logger.info("Setting beam center.")
+
         self.df = pd.concat([self.df, beam_center_data.df[["x","y"]]], axis=1)
         d = {'z': np.full(self.df.shape[0], self.meta["sdd"])}
         df = pd.DataFrame(d)
@@ -251,6 +235,8 @@ class Data(object):
         Qx, Qy
         Theta
         '''
+        logger.info("Calculate Q values.")
+
         data_x = self.df.x.values
         data_y = self.df.y.values
         data_z = self.df.z.values
@@ -279,19 +265,21 @@ class Data(object):
         TODO: By detector
 
         '''
+        logger.info("Solid Angle Correction.")
         #self.df['counts'] = self.df['counts'].values * np.cos(theta)**3
         theta = self.df.theta.values
         self *= np.cos(theta)**3
 
 
-    def normalization(self, monitor=True, time=False):
+    def normalization(self, monitor=True):
         '''
+        @param monitor: If True uses monitor_counts otherwise uses counting_time
         Either use monitor or time
         '''
-        assert(monitor != time, "ERROR: monitor and time can not be both True or False.")
+        logger.info("Normalization.")
         if monitor:
             self /= self.meta["monitor_counts"]
-        if time:
+        else:
             self /= self.meta["counting_time"]
 
 
@@ -300,6 +288,7 @@ class Data(object):
         Apply the transmission_value to the data
         @param transmission_value : value
         '''
+        logger.info("Transmission Correction.")
         theta = self.df.theta.values
         self /= transmission_value**((1+(1/np.cos(2*theta)))/2)
 
@@ -312,8 +301,9 @@ class Data(object):
         transmission is the ratio Tc=Ib/Ie where Ib is the intensity for the empty cell (Blank).
 
         @param direct_beam : direct beam data
-        @return transmission_value
+        @return transmission_value : float value!!!
         '''
+        logger.info("Calculate Transmission value.")
         sample_df = self.df[self.df[np.hypot(self.df.x, self.df.y) < radius]]
         # TODO
 
@@ -325,8 +315,8 @@ class Data(object):
         - Rename for front/back tubes
          - See if we can use Numpy MaskedArrays
         '''
-
         #self.df.loc[self.df.j%2 == 0, 'counts'] = np.nan
+        logger.info("Mask Even tubes.")
         mask = self.df.j%2 == 0
         self.df.counts = self.df.counts.mask(mask)
 
@@ -342,6 +332,7 @@ class Data(object):
         # self.df.counts = np.ma.filled(masked_array)
         # print(self.df.counts)
 
+        logger.info("Mask odd tubes.")
         mask = (self.df.j+1)%2 == 0
         self.df.counts = self.df.counts.mask(mask)
 
@@ -359,19 +350,21 @@ class Data(object):
         The sample data is then corrected by dividing the intensity in each pixels by the efficiency S
         '''
         # First step
-        un = Data._from_df_to_uncertainties(self.df)
-        mean = un.mean()
-        un = un / mean
-        self._from_uncertainties_to_df(un)
+        logger.info("Compute Sensitivity.")
+
+        mean = self.df.counts.values.mean()
+        self /= mean
+
+        # TODO: np.nanmean is not working!!!
         # Mask what is outside the boundaries
         mask = (self.df.counts < min_sensitivity) | (self.df.counts > max_sensitivity)
-        self.df.counts = self.df.counts.mask(mask)
-        self.df.errors = self.df.errors.mask(mask)
-        # Recompute
-        un = Data._from_df_to_uncertainties(self.df)
-        mean = un.mean()
-        un = un / mean
-        self._from_uncertainties_to_df(un)
+        if (mask.any()):
+            logger.debug("There are values outside the limits [%s, %s]. Recomputing Sensitivity again...", min_sensitivity,max_sensitivity)
+            self.df.counts = self.df.counts.mask(mask)
+            # Same as mask using where
+            # self.df.counts.where(((self.df.counts > min_sensitivity) & (self.df.counts < max_sensitivity)), np.nan, inplace=True)
+            mean = np.nanmean(self.df.counts.values)
+            self /= mean
 
     def correct_sensitivity(self,computed_sensitivity):
         '''
@@ -380,4 +373,5 @@ class Data(object):
         I'_{sample}(x,y) = \frac{I_{sample}(x,y)}{S(x,y)}
         The pixels found to have an efficiency outside the given limits are also masked in the sample data so that they don’t enter any subsequent calculations.
         '''
+        logger.info("Sensitivity correction.")
         self /= computed_sensitivity
