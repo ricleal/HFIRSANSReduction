@@ -65,13 +65,12 @@ class HFIR(Data):
         error = np.sqrt(detector_data)
         rows_v, cols_v = np.meshgrid(
             range(n_rows), range(n_cols), indexing='ij')
-        
-        counts = from_arrays_to_uncertainties(detector_data.ravel(),error.ravel())
 
         d = {'name': np.full(total_size, detector_name, dtype=np.dtype('S32')),
              'i': rows_v.ravel(),  # i = rows
              'j': cols_v.ravel(),  # j = coluns
-             'counts': counts,
+             'counts': detector_data.ravel(),
+             'errors' : error.ravel(),
              }
         self.add_dictionary_as_dataframe(d)
 
