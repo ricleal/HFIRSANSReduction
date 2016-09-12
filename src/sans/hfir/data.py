@@ -7,11 +7,9 @@ import numpy as np
 
 from collections import OrderedDict
 
-
 from config.settings import logger
 from sans.data import Data
 from sans.hfir.parser import HFIR as HFIRParser
-from operations.errors import from_arrays_to_uncertainties
 
 #
 # common metadata and detectors to all SANS HFIR instruments

@@ -69,11 +69,15 @@ def biosans():
     flood.df = flood[flood['name'] == "main".encode("utf-8") ]
     #flood.plot()
     flood.compute_sensitivity()
-    print(flood.df)
+    #print(flood.df)
     #flood.plot()
+
+    data.df = data[data['name'] == "main".encode("utf-8") ]
+    #data.plot()
     data.correct_sensitivity(flood)
-    data.plot(log=False)
-    
+    data.plot()
+    #print(data.df)
+
 def main():
     #gpsans()
     biosans()

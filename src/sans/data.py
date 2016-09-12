@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import scipy.ndimage as ndimage
 from scipy import stats
-from operations.errors import from_uncertainties_to_arrays
+from operations.errors import compute as compute_uncertainties
 
 from config.settings import logger
 from .beam_center import find_beam_center
@@ -34,6 +34,9 @@ class Data(object):
     def __add__(self, other):
         if isinstance(other, self.__class__):
             self.df.counts = self.df.counts + other.df.counts
+            self.df.errors = compute_uncertainties("x+y",
+                values = {'x' : self.df.counts, 'y' :  other.df.counts},
+                error_values = {'x' : self.df.errors, 'y' :  other.df.errors})
         else:
             self.df.counts = self.df.counts.values + other
         return self
@@ -41,6 +44,9 @@ class Data(object):
     def __sub__(self, other):
         if isinstance(other, self.__class__):
             self.df.counts = self.df.counts - other.df.counts
+            self.df.errors = compute_uncertainties("x-y",
+                values = {'x' : self.df.counts, 'y' :  other.df.counts},
+                error_values = {'x' : self.df.errors, 'y' :  other.df.errors})
         else:
             self.df.counts = self.df.counts.values - other
         return self
@@ -48,6 +54,9 @@ class Data(object):
     def __mul__(self, other):
         if isinstance(other, self.__class__):
             self.df.counts = self.df.counts * other.df.counts
+            self.df.errors = compute_uncertainties("x*y",
+                values = {'x' : self.df.counts, 'y' :  other.df.counts},
+                error_values = {'x' : self.df.errors, 'y' :  other.df.errors})
         else:
             self.df.counts = self.df.counts.values * other
         return self
@@ -56,6 +65,14 @@ class Data(object):
     def __itruediv__(self, other):
         if isinstance(other, self.__class__):
             self.df.counts = self.df.counts / other.df.counts
+            self.df.errors = compute_uncertainties("x/y",
+                values = {'x' : self.df.counts, 'y' :  other.df.counts},
+                error_values = {'x' : self.df.errors, 'y' :  other.df.errors})
+        elif isinstance(other, tuple) and len(other) == 2:
+            self.df.counts = self.df.counts.values / other[0]
+            self.df.errors = compute_uncertainties("x/y",
+                values = {'x' : self.df.counts, 'y' :  np.array(other[0])},
+                error_values = {'x' : self.df.errors, 'y' :  np.array(other[1])})
         else:
             un = self.df.counts.values / other
             self.df.counts = un
@@ -86,6 +103,16 @@ class Data(object):
         dictrepr = self.df.__repr__()
         return '%s(%s)' % (type(self).__name__, dictrepr)
 
+    def __mean(self):
+        sum_values = np.sqrt(np.sum(self.df.counts.values**2))
+        # Error propagation of a sum is sqrt of squared sums
+        sum_errors = np.sqrt(np.sum(self.df.errors.values**2))
+        total = self.df.counts.dropna().size
+        errors = compute_uncertainties("x/y",
+            values = {'x' : np.array(sum_values), 'y' :  np.array(total)},
+            error_values = {'x' : np.array(sum_errors), 'y' :  np.array(total)})
+        return sum_values/total, errors
+
     def add_dictionary_as_dataframe(self,d):
         df = pd.DataFrame(d)
         if self.df is None:
@@ -102,7 +129,7 @@ class Data(object):
         except AttributeError:
             pass
         pivot = self.df[self.df.name == detector_name].pivot(index='i', columns='j', values=values_name)
-        values, _ = from_uncertainties_to_arrays(pivot.values)
+        values = pivot.values
         return values
 
 
@@ -156,7 +183,7 @@ class Data(object):
         '''
         logger.info("Plotting IQ.")
         plt.figure()
-        counts, _ = from_uncertainties_to_arrays(self.df['counts'].values)
+        counts = self.df['counts'].values
         bin_means, bin_edges, _ = stats.binned_statistic(self.df['q'].values, counts, statistic='mean', bins=n_bins)
         bin_width = (bin_edges[1] - bin_edges[0])
         bin_centers = bin_edges[1:] - bin_width/2
@@ -352,7 +379,8 @@ class Data(object):
         # First step
         logger.info("Compute Sensitivity.")
 
-        mean = self.df.counts.values.mean()
+        #mean = self.df.counts.values.mean()
+        mean = self.__mean()
         self /= mean
 
         # TODO: np.nanmean is not working!!!
