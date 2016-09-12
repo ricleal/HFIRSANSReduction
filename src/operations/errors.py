@@ -4,47 +4,51 @@ from collections import OrderedDict
 import numpy as np
 
 
-class Errors(object):
+def compute(input_str, values, error_values):
+    '''
+    compute uncertainty
 
-    def compute(self, input_str, var_names, var_values, var_errors):
-        '''
-        input_str : function
-        var_names : ['a','b']
-        var_values : [1,3]
-        var_errors : [0.1,0.2]
-        '''
-        # Get user function and delete old symbols
+    input_str : function
+    values : : {'x':[1,3,4,...], 'y':[34,5,5,6,..]}
+    error_values : {'x':[1,3,4,...], 'y':[34,5,5,6,..]}
+    '''
 
-        self.function = sp.S(input_str)
-        self.symbols = []
+    function = sp.S(input_str)
+    symbols = [str(x) for x in function.atoms(sp.Symbol)]
 
-        # Get values as dict
-        vals = OrderedDict({})
-        for var_name, var_value in zip(var_names,var_values):
-            symbol = sp.Symbol(var_name)
-            vals.update({symbol : var_value})
+    # Resulting array
+    error_sq = np.zeros_like(list(error_values.values())[0], dtype=np.float64)
 
-        # Get every derivative
-        derivs = []
-        for symbol in vals.keys():
-            derivs.append(sp.diff(self.function, symbol))
+    for symbol,error in zip(symbols,list(error_values.values())):
+        deriv = sp.diff(function, symbol)
+        deriv_symbols = [str(x) for x in deriv.atoms(sp.Symbol)]
 
-        error_sq = np.empty_like(var_values[0])
-        for deriv, error in zip(derivs,var_errors):
-            f = sp.lambdify(vals.keys(), deriv, "numpy")
-            #temp = deriv.evalf(subs=dict(vals))
-            temp = f(*vals.values())
-            temp *= error
-            temp *= temp
-            error_sq += temp
+        f = sp.lambdify(deriv_symbols, deriv, "numpy")
+        values_to_evaluate = [values[k] for k in deriv_symbols]
+        if not values_to_evaluate:
+            deriv_result = f()
+        else:
+            deriv_result = f(*values_to_evaluate) #upack list
+        #print([deriv, deriv_symbols, values_to_evaluate, temp])
+        error_sq += (deriv_result * error)**2
+
+    return np.sqrt(error_sq)
 
 
-        f = sp.lambdify(vals.keys(), self.function, "numpy")
+def main():
+    # Testing
+    input_str = 'x*x*y*y'
+    values = {
+     'x' : np.array([2.0]),
+     'y' : np.array([3.0])
+    }
+    error_values = {
+     'x' : np.array([0.1]),
+     'y' : np.array([0.2])
+    }
+    v = compute(input_str, values, error_values)
+    print(v)
 
-        print("Result: {} +- {}".format(f(*vals.values()),np.sqrt(error_sq)))
-e = Errors()
-#e.compute("a**b",['a','b'],[2,2],[0.1,0.1])
 
-a = np.array([1.,2.])
-b = a
-e.compute("a*b",['a','b'],[a,b],[np.sqrt(a),np.sqrt(b)])
+if __name__ == "__main__":
+    main()
