@@ -34,9 +34,7 @@ class Data(object):
     def __add__(self, other):
         if isinstance(other, self.__class__):
             self.df.counts = self.df.counts + other.df.counts
-            self.df.errors = compute_uncertainties("x+y",
-                values = {'x' : self.df.counts, 'y' :  other.df.counts},
-                error_values = {'x' : self.df.errors, 'y' :  other.df.errors})
+            self.df.errors = np.sqrt( self.df.errors.values**2 +  other.df.errors.values**2 )
         else:
             self.df.counts = self.df.counts.values + other
         return self
@@ -44,38 +42,40 @@ class Data(object):
     def __sub__(self, other):
         if isinstance(other, self.__class__):
             self.df.counts = self.df.counts - other.df.counts
-            self.df.errors = compute_uncertainties("x-y",
-                values = {'x' : self.df.counts, 'y' :  other.df.counts},
-                error_values = {'x' : self.df.errors, 'y' :  other.df.errors})
+            self.df.errors = np.sqrt(self.df.errors.values**2  + other.df.errors.values**2)
         else:
             self.df.counts = self.df.counts.values - other
         return self
 
     def __mul__(self, other):
         if isinstance(other, self.__class__):
-            self.df.counts = self.df.counts * other.df.counts
-            self.df.errors = compute_uncertainties("x*y",
-                values = {'x' : self.df.counts, 'y' :  other.df.counts},
-                error_values = {'x' : self.df.errors, 'y' :  other.df.errors})
+            tmp = self.df.counts * other.df.counts
+            self.df.errors = np.absolute(tmp) * np.sqrt(
+                (self.df.errors/self.df.counts)**2 + (other.df.errors/other.df.counts)**2
+                )
+            self.df.counts = tmp
         else:
             self.df.counts = self.df.counts.values * other
+            self.df.errors = self.df.errors.values * abs(other)
         return self
 
 
     def __itruediv__(self, other):
         if isinstance(other, self.__class__):
-            self.df.counts = self.df.counts / other.df.counts
-            self.df.errors = compute_uncertainties("x/y",
-                values = {'x' : self.df.counts, 'y' :  other.df.counts},
-                error_values = {'x' : self.df.errors, 'y' :  other.df.errors})
+            tmp = self.df.counts / other.df.counts
+            self.df.errors = np.absolute(tmp) * np.sqrt(
+                (self.df.errors/self.df.counts)**2 + (other.df.errors/other.df.counts)**2
+                )
+            self.df.counts = tmp
         elif isinstance(other, tuple) and len(other) == 2:
-            self.df.counts = self.df.counts.values / other[0]
-            self.df.errors = compute_uncertainties("x/y",
-                values = {'x' : self.df.counts, 'y' :  np.array(other[0])},
-                error_values = {'x' : self.df.errors, 'y' :  np.array(other[1])})
+            tmp = self.df.counts / other[0]
+            self.df.errors = np.absolute(tmp) * np.sqrt(
+                (self.df.errors.values/self.df.counts.values)**2 + (other[1]/other[0])**2
+                )
+            self.df.counts = tmp
         else:
-            un = self.df.counts.values / other
-            self.df.counts = un
+            self.df.counts = self.df.counts.values / other
+            self.df.errors = self.df.errors.values / abs(other)
         return self
 
 
@@ -104,14 +104,13 @@ class Data(object):
         return '%s(%s)' % (type(self).__name__, dictrepr)
 
     def __mean(self):
-        sum_values = np.sqrt(np.sum(self.df.counts.values**2))
+        sum_values = np.sum(self.df.counts.dropna().values)
         # Error propagation of a sum is sqrt of squared sums
-        sum_errors = np.sqrt(np.sum(self.df.errors.values**2))
+        sum_errors = np.sqrt(np.sum(self.df.errors.dropna().values**2))
         total = self.df.counts.dropna().size
-        errors = compute_uncertainties("x/y",
-            values = {'x' : np.array(sum_values), 'y' :  np.array(total)},
-            error_values = {'x' : np.array(sum_errors), 'y' :  np.array(total)})
-        return sum_values/total, errors
+        mean_value, mean_error = sum_values/total,  sum_errors/total
+        logger.debug("Mean value = %.2e error = %.2e from total count = %d.", mean_value, mean_error,total)
+        return mean_value, mean_error
 
     def add_dictionary_as_dataframe(self,d):
         df = pd.DataFrame(d)
@@ -207,7 +206,7 @@ class Data(object):
         logger.info("Plotting IQ with errors.")
         plt.figure()
         x = self.df['q'].values
-        y, e = from_uncertainties_to_arrays(self.df['counts'].values)
+        y, e = self.df.counts.values, self.df.errors.values
         # Let's get the histogram detail
         logger.debug("Binning Q.")
 
@@ -278,7 +277,7 @@ class Data(object):
         qy = q*np.sin(alpha)
 
         d = {'theta' : theta,
-            'q': q,
+             'q': q,
              'qx': qx,
              'qy': qy
              }
@@ -303,11 +302,14 @@ class Data(object):
         @param monitor: If True uses monitor_counts otherwise uses counting_time
         Either use monitor or time
         '''
-        logger.info("Normalization.")
         if monitor:
+            logger.info("Normalization by monitor counts.")
             self /= self.meta["monitor_counts"]
         else:
+            logger.info("Normalization by counting time.")
             self /= self.meta["counting_time"]
+        logger.debug("After normalization: Max = %.2e, Min = %.2e, Mean = %.2e.",
+            self.df.counts.max(),self.df.counts.min(), self.df.counts.mean())
 
 
     def correct_transmission(self, transmission_value):
@@ -377,11 +379,13 @@ class Data(object):
         The sample data is then corrected by dividing the intensity in each pixels by the efficiency S
         '''
         # First step
-        logger.info("Compute Sensitivity.")
+        logger.info("Compute Sensitivity")
+        #logger.debug(self.df.counts.describe())
 
-        #mean = self.df.counts.values.mean()
         mean = self.__mean()
         self /= mean
+
+        #logger.debug(self.df.counts.describe())
 
         # TODO: np.nanmean is not working!!!
         # Mask what is outside the boundaries
@@ -389,10 +393,13 @@ class Data(object):
         if (mask.any()):
             logger.debug("There are values outside the limits [%s, %s]. Recomputing Sensitivity again...", min_sensitivity,max_sensitivity)
             self.df.counts = self.df.counts.mask(mask)
+            self.df.errors = self.df.errors.mask(mask)
             # Same as mask using where
             # self.df.counts.where(((self.df.counts > min_sensitivity) & (self.df.counts < max_sensitivity)), np.nan, inplace=True)
-            mean = np.nanmean(self.df.counts.values)
+            #logger.debug(self.df.counts.describe())
+            mean = self.__mean()
             self /= mean
+            #logger.debug(self.df.counts.describe())
 
     def correct_sensitivity(self,computed_sensitivity):
         '''
