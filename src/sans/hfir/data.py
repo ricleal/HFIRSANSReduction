@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
 import sys
@@ -22,17 +22,21 @@ This HFIR generic! Just one detector!
 
 
 class HFIR(Data):
+    '''
+    HFIR Data container
+    '''
 
-    metadata = OrderedDict({"title": "Header/Scan_Title",
+    # pairs of metadata name and xpath in the datafile
+    metadata = {"title": "Header/Scan_Title",
                             "wavelength": "Header/wavelength",
                             "wavelength_spread": "Header/wavelength_spread",
                             "sdd" : "Motor_Positions/sdd",
                             "monitor_counts" : "Counters/monitor",
                             "counting_time" : "Counters/time",
-                            })
+                            }
 
     # first detector is used for beam center
-    detectors = OrderedDict({"main": "Data/Detector"})
+    detectors = {"main": "Data/Detector"}
 
     def __init__(self, filename):
         '''
@@ -64,12 +68,13 @@ class HFIR(Data):
         rows_v, cols_v = np.meshgrid(
             range(n_rows), range(n_cols), indexing='ij')
 
-        d = {'name': np.full(total_size, detector_name, dtype=np.dtype('S32')),
-             'i': rows_v.ravel(),  # i = rows
-             'j': cols_v.ravel(),  # j = coluns
-             'counts': detector_data.ravel(),
-             'errors' : error.ravel(),
-             }
+        d = OrderedDict([
+            ('name', np.full(total_size, detector_name, dtype=np.dtype('S32'))),
+            ('i', rows_v.ravel()),  # i = rows
+            ('j', cols_v.ravel()),  # j = coluns
+            ('counts', detector_data.ravel()),
+            ('errors', error.ravel()),
+            ])
         self.add_dictionary_as_dataframe(d)
 
     def place_detectors_in_space(self):
@@ -84,7 +89,7 @@ class HFIR(Data):
         detector_name = list(self.detectors.keys())[0]
 
         # First detector in list is used to find the beamcenter.
-        beam_center_x, beam_center_y,  = self._find_beam_center(detector_name)
+        beam_center_x, beam_center_y = self._find_beam_center(detector_name)
         self.meta["beam_center"] = [beam_center_x, beam_center_y]
 
         pixel_size_x = self._parser.getMetadata("Header/x_mm_per_pixel") * 1e-3

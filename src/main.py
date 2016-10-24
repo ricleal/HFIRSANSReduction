@@ -84,20 +84,20 @@ def biosans():
     from sans.hfir.biosans.data import Data
     bc = Data("/HFIR/CG3/IPTS-0000/exp327/Datafiles/BioSANS_exp327_scan0039_0001.xml")
     # bc = Data("/Users/rhf/Dropbox (ORNL)/DocumentsWorkstation/SANS/BioSans/20160621-SensitivityCorrupted/BioSANS_exp318_scan0185_0001.xml")
-    bc.place_detectors_in_space()
-    # bc.plot()
+    #bc.place_detectors_in_space()
+    bc.plot()
 
-    data = Data("/HFIR/CG3/IPTS-0000/exp327/Datafiles/BioSANS_exp327_scan0045_0001.xml")
+    #data = Data("/HFIR/CG3/IPTS-0000/exp327/Datafiles/BioSANS_exp327_scan0045_0001.xml")
     #data = Data("/Users/rhf/Dropbox (ORNL)/DocumentsWorkstation/SANS/BioSans/20160621-SensitivityCorrupted/BioSANS_exp318_scan0034_0001.xml")
-    data.set_beam_center(bc)
+    #data.set_beam_center(bc)
     #data.plot()
-    data.calculate_q_values()
+    #data.calculate_q_values()
     #data.plot()
     #print(data.df)
-    data.correct_solid_angle()
+    #data.correct_solid_angle()
     #print(data.df)
-    data.plot_iq_errors()
-    data.plot_iq()
+    #data.plot_iq_errors()
+    #data.plot_iq()
 
 
 def main():

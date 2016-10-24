@@ -49,7 +49,7 @@ class Data(HFIR):
         step_angle_radians = np.arcsin(step/2.0/radius)
         step_angle_degrees = np.degrees(step_angle_radians)
 
-        radial_angles = [ - np.deg2rad(rotation) + -step_angle_radians * i for i in range(n_pixels_x) ]
+        radial_angles = [ np.deg2rad(90) - np.deg2rad(rotation) + -step_angle_radians * i for i in range(n_pixels_x) ]
         row_z = radius*np.cos(radial_angles)
         row_x = radius*np.sin(radial_angles)
 

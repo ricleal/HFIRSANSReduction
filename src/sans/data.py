@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import scipy.ndimage as ndimage
 from scipy import stats
-from operations.errors import compute as compute_uncertainties
+#from operations.errors import compute as compute_uncertainties
 
 from config.settings import logger
 from .beam_center import find_beam_center
@@ -22,19 +22,19 @@ class Data(object):
 
 
     df = None # Instrument data frame
-    meta = {}
+    meta = {} # Instrument metadata
 
 
     def __init__(self, filename):
         if not os.path.exists(filename):
-            logger.error("File %s does not exist!"%(filename))
+            logger.error("File %s does not exist!", filename)
             sys.exit()
         self._filename = filename
 
     def __add__(self, other):
         if isinstance(other, self.__class__):
             self.df.counts = self.df.counts + other.df.counts
-            self.df.errors = np.sqrt( self.df.errors.values**2 +  other.df.errors.values**2 )
+            self.df.errors = np.sqrt(self.df.errors.values**2 + other.df.errors.values**2)
         else:
             self.df.counts = self.df.counts.values + other
         return self
@@ -108,8 +108,8 @@ class Data(object):
         # Error propagation of a sum is sqrt of squared sums
         sum_errors = np.sqrt(np.sum(self.df.errors.dropna().values**2))
         total = self.df.counts.dropna().size
-        mean_value, mean_error = sum_values/total,  sum_errors/total
-        logger.debug("Mean value = %.2e error = %.2e from total count = %d.", mean_value, mean_error,total)
+        mean_value, mean_error = sum_values/total, sum_errors/total
+        logger.debug("Mean value = %.2e error = %.2e from total count = %d.", mean_value, mean_error, total)
         return mean_value, mean_error
 
     def add_dictionary_as_dataframe(self,d):
@@ -138,8 +138,8 @@ class Data(object):
         @return: pixel coordinates
         '''
         data = self.get_detector_2d(detector_name)
-        x,y = find_beam_center(data)
-        return x,y
+        x, y = find_beam_center(data)
+        return x, y
 
     def plot(self, log=True):
         '''
@@ -149,26 +149,26 @@ class Data(object):
         detector_names = self.df["name"].unique()
         plt.figure()
         subplot_prefix = "1{}".format(len(detector_names))
-        for idx,detector_name in enumerate(detector_names):
+        for idx, detector_name in enumerate(detector_names):
             logger.debug("Plotting %s."%(detector_name))
             values = self.get_detector_2d(detector_name)
             if log:
                 values = np.log(values)
-            plt.subplot("{}{}".format(subplot_prefix,idx+1))
+            plt.subplot("{}{}".format(subplot_prefix, idx+1))
             plt.title(detector_name.decode())
             beam_center = self.meta.get("beam_center")
             if beam_center and detector_name.decode() == list(self.detectors.keys())[0]:
                 # Modify the image to include the grid
                 beam_center_x = int(round(beam_center[0]))
                 beam_center_y = int(round(beam_center[1]))
-                logger.debug("Setting plot cross at beam_center [%s,%s] pixels."%(beam_center_x,beam_center_y))
-                values[:,beam_center_x] = values.max()
-                values[beam_center_y,:] = values.max()
+                logger.debug("Setting plot cross at beam_center [%s,%s] pixels."%(beam_center_x, beam_center_y))
+                values[:, beam_center_x] = values.max()
+                values[beam_center_y, :] = values.max()
             if beam_center:
                 x = self.df[self.df["name"] == detector_name].x.unique()
                 y = self.df[self.df["name"] == detector_name].y.unique()
-                extent=(x[0],x[-1],y.min(),y.max())
-                plt.imshow(values,extent=extent, origin='upper', aspect='auto')
+                extent=(x[0], x[-1], y.min(), y.max())
+                plt.imshow(values, extent=extent, origin='upper', aspect='auto')
                 plt.xlabel('X')
                 plt.ylabel('Y')
             else:
@@ -271,6 +271,9 @@ class Data(object):
         theta = np.arctan2(r, data_z)/2
         wavelength = self.meta["wavelength"]
         q = (4*np.pi/wavelength)*np.sin(theta)
+        # TODO: Is dq calculated like this?
+        wavelength_spread = self.meta["wavelength_spread"]
+        dq = (4*np.pi/wavelength_spread)*np.sin(theta)
 
         alpha = np.arctan2(data_x,data_y)
         qx = q*np.cos(alpha)
@@ -279,7 +282,8 @@ class Data(object):
         d = {'theta' : theta,
              'q': q,
              'qx': qx,
-             'qy': qy
+             'qy': qy,
+             'dq' : dq,
              }
         df = pd.DataFrame(d)
         self.df = pd.concat([self.df, df], axis=1)
